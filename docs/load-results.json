@@ -1,0 +1,9 @@
+{
+  "clients": 500,
+  "deliveries": 250,
+  "concurrentSends": 25,
+  "medianMs": 64.4364,
+  "p95Ms": 74.7501,
+  "maxMs": 76.9807,
+  "testedAtUtc": "2026-10-07T04:31:39.2607686Z"
+}

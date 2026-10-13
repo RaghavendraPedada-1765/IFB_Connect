@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="IFB.Client.Views.Pages.DirectoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:IFB.Client.Controls"
+    Background="Transparent">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header + search -->
+        <Grid Padding="24,20,24,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="2">
+                <TextBlock Text="Employee Directory" Style="{StaticResource SubtitleStyle}"
+                           Foreground="{ThemeResource TextPrimaryBrush}"/>
+                <TextBlock Text="All IFB Automotive employees"
+                           Style="{StaticResource CaptionStyle}"/>
+            </StackPanel>
+            <AutoSuggestBox Grid.Column="1" Width="240"
+                            PlaceholderText="Search employees..." QueryIcon="Find"/>
+        </Grid>
+
+        <!-- Employee grid -->
+        <ScrollViewer Grid.Row="1" Padding="16,0,16,16">
+            <ItemsRepeater x:Name="EmployeeGrid">
+                <ItemsRepeater.Layout>
+                    <UniformGridLayout MinItemWidth="200" MinItemHeight="120"
+                                       ItemsStretch="Fill" MinColumnSpacing="12" MinRowSpacing="12"/>
+                </ItemsRepeater.Layout>
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate>
+                        <!-- Employee card -->
+                        <Border Style="{StaticResource GlassCardStyle}"
+                                Padding="16,12" CornerRadius="12">
+                            <StackPanel Spacing="8">
+                                <controls:PresenceAvatar Size="40" HorizontalAlignment="Left"/>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               Style="{StaticResource BodyStrongStyle}"
+                                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding Title}"
+                                               Style="{StaticResource CaptionStyle}"/>
+                                    <TextBlock Text="{Binding Department}"
+                                               FontSize="11"
+                                               Foreground="{StaticResource AccentPrimaryLightBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+        </ScrollViewer>
+    </Grid>
+</Page>
+

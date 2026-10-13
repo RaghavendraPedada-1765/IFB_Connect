@@ -1,0 +1,1 @@
+Built-in image generation. Prompt: Create a transparent horizontal IFB Connect logo based on the supplied IFB stencil wordmark, with a corporate blue speech bubble containing two connected white nodes, preserved recognizable IFB lettering, and a modern Connect wordmark. Crisp flat vector-like edges, balanced alignment and clear space. No slogan, watermark or mockup.

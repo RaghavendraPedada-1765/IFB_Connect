@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ColorTokens.xaml — IFB Connect Design System
+  All color brushes derived from theme.json tokens.
+  Never hard-code colors elsewhere; always reference these brushes.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- ACCENT COLORS                                                       -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <Color x:Key="AccentPrimary">#FF0055A5</Color>
+    <Color x:Key="AccentPrimaryLight">#FF1E7FE0</Color>
+    <Color x:Key="AccentPrimaryDark">#FF003D7A</Color>
+    <Color x:Key="AccentPrimarySubtle">#200055A5</Color>
+
+    <SolidColorBrush x:Key="AccentPrimaryBrush" Color="{StaticResource AccentPrimary}"/>
+    <SolidColorBrush x:Key="AccentPrimaryLightBrush" Color="{StaticResource AccentPrimaryLight}"/>
+    <SolidColorBrush x:Key="AccentSubtleBrush" Color="{StaticResource AccentPrimarySubtle}"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- SEMANTIC COLORS                                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <Color x:Key="SemanticSuccess">#FF1DB954</Color>
+    <Color x:Key="SemanticWarning">#FFF59E0B</Color>
+    <Color x:Key="SemanticUrgent">#FFEF4444</Color>
+    <Color x:Key="SemanticInfo">#FF3B82F6</Color>
+
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SemanticSuccess}"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource SemanticWarning}"/>
+    <SolidColorBrush x:Key="UrgentBrush" Color="{StaticResource SemanticUrgent}"/>
+    <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource SemanticInfo}"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- PRESENCE COLORS                                                     -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <SolidColorBrush x:Key="PresenceOnlineBrush" Color="#FF22C55E"/>
+    <SolidColorBrush x:Key="PresenceAwayBrush" Color="#FFF59E0B"/>
+    <SolidColorBrush x:Key="PresenceBusyBrush" Color="#FFEF4444"/>
+    <SolidColorBrush x:Key="PresenceDndBrush" Color="#FF9333EA"/>
+    <SolidColorBrush x:Key="PresenceOfflineBrush" Color="#FF6B7280"/>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- DARK THEME (default)                                               -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <ResourceDictionary.ThemeDictionaries>
+
+        <ResourceDictionary x:Key="Dark">
+            <!-- Background layers -->
+            <Color x:Key="Bg0">#FF060D1A</Color>
+            <Color x:Key="Bg1">#FF111827</Color>
+            <Color x:Key="Bg2">#FF1A2235</Color>
+            <Color x:Key="Bg3">#FF232E42</Color>
+
+            <!-- Text -->
+            <Color x:Key="TextPrimary">#FFF1F5F9</Color>
+            <Color x:Key="TextSecondary">#FF94A3B8</Color>
+            <Color x:Key="TextDisabled">#FF94A3B8</Color>
+
+            <!-- Glass surfaces — 3 elevation levels -->
+            <!-- Level 1: icon rail (darkest/most opaque) -->
+            <Color x:Key="Glass1Color">#CC0D1626</Color>
+            <!-- Level 2: conversation list -->
+            <Color x:Key="Glass2Color">#B3111B2A</Color>
+            <!-- Level 3: main chat area (lightest) -->
+            <Color x:Key="Glass3Color">#991A2535</Color>
+
+            <!-- Glass borders -->
+            <Color x:Key="GlassBorderColor">#28FFFFFF</Color>
+            <Color x:Key="GlassBorderStrongColor">#40FFFFFF</Color>
+
+            <!-- Card surface -->
+            <Color x:Key="SurfaceColor">#CC1E2A3A</Color>
+            <Color x:Key="SurfaceHoverColor">#CC263346</Color>
+
+            <!-- Message bubbles -->
+            <Color x:Key="BubbleSentColor">#CC0044A0</Color>
+            <Color x:Key="BubbleReceivedColor">#CC1C2740</Color>
+
+            <!-- Brushes from above colors -->
+            <SolidColorBrush x:Key="Bg0Brush" Color="{StaticResource Bg0}"/>
+            <SolidColorBrush x:Key="Bg1Brush" Color="{StaticResource Bg1}"/>
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}"/>
+            <SolidColorBrush x:Key="TextDisabledBrush" Color="{StaticResource TextDisabled}"/>
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorderColor}"/>
+            <SolidColorBrush x:Key="GlassBorderStrongBrush" Color="{StaticResource GlassBorderStrongColor}"/>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
+            <SolidColorBrush x:Key="BubbleSentBrush" Color="{StaticResource BubbleSentColor}"/>
+            <SolidColorBrush x:Key="BubbleReceivedBrush" Color="{StaticResource BubbleReceivedColor}"/>
+
+            <!-- Acrylic tint brushes for Glass panels -->
+            <AcrylicBrush x:Key="Glass1Brush"
+                TintColor="#0D1626" TintOpacity="0.85"
+                FallbackColor="#E00D1626"/>
+            <AcrylicBrush x:Key="Glass2Brush"
+                TintColor="#111B2A" TintOpacity="0.80"
+                FallbackColor="#E0111B2A"/>
+            <AcrylicBrush x:Key="Glass3Brush"
+                TintColor="#1A2535" TintOpacity="0.75"
+                FallbackColor="#E01A2535"/>
+            <AcrylicBrush x:Key="GlassCardBrush"
+                TintColor="#1E2A3A" TintOpacity="0.80"
+                FallbackColor="#E01E2A3A"/>
+            <AcrylicBrush x:Key="GlassOverlayBrush"
+                TintColor="#080F1E" TintOpacity="0.90"
+                FallbackColor="#F0080F1E"/>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="Light">
+            <!-- Background layers -->
+            <Color x:Key="Bg0">#FFEEF2FF</Color>
+            <Color x:Key="Bg1">#FFF8FAFF</Color>
+            <Color x:Key="Bg2">#FFFFFFFF</Color>
+            <Color x:Key="Bg3">#FFF0F4FF</Color>
+
+            <!-- Text -->
+            <Color x:Key="TextPrimary">#FF0F172A</Color>
+            <Color x:Key="TextSecondary">#FF475569</Color>
+            <Color x:Key="TextDisabled">#FF64748B</Color>
+
+            <Color x:Key="Glass1Color">#CCF5F8FF</Color>
+            <Color x:Key="Glass2Color">#CCF0F4FF</Color>
+            <Color x:Key="Glass3Color">#CCF8FAFF</Color>
+
+            <Color x:Key="GlassBorderColor">#1A000000</Color>
+            <Color x:Key="GlassBorderStrongColor">#30000000</Color>
+
+            <Color x:Key="SurfaceColor">#D9FFFFFF</Color>
+            <Color x:Key="SurfaceHoverColor">#D9F0F4FF</Color>
+
+            <Color x:Key="BubbleSentColor">#FF0055A5</Color>
+            <Color x:Key="BubbleReceivedColor">#FFE8EEFF</Color>
+
+            <SolidColorBrush x:Key="Bg0Brush" Color="{StaticResource Bg0}"/>
+            <SolidColorBrush x:Key="Bg1Brush" Color="{StaticResource Bg1}"/>
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimary}"/>
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondary}"/>
+            <SolidColorBrush x:Key="TextDisabledBrush" Color="{StaticResource TextDisabled}"/>
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="{StaticResource GlassBorderColor}"/>
+            <SolidColorBrush x:Key="GlassBorderStrongBrush" Color="{StaticResource GlassBorderStrongColor}"/>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
+            <SolidColorBrush x:Key="BubbleSentBrush" Color="{StaticResource BubbleSentColor}"/>
+            <SolidColorBrush x:Key="BubbleReceivedBrush" Color="{StaticResource BubbleReceivedColor}"/>
+
+            <AcrylicBrush x:Key="Glass1Brush"
+                TintColor="#F5F8FF" TintOpacity="0.90"
+                FallbackColor="#F5F5F8FF"/>
+            <AcrylicBrush x:Key="Glass2Brush"
+                TintColor="#F0F4FF" TintOpacity="0.85"
+                FallbackColor="#F5F0F4FF"/>
+            <AcrylicBrush x:Key="Glass3Brush"
+                TintColor="#F8FAFF" TintOpacity="0.80"
+                FallbackColor="#F5F8FAFF"/>
+            <AcrylicBrush x:Key="GlassCardBrush"
+                TintColor="#FFFFFF" TintOpacity="0.85"
+                FallbackColor="#F5FFFFFF"/>
+            <AcrylicBrush x:Key="GlassOverlayBrush"
+                TintColor="#EEF2FF" TintOpacity="0.95"
+                FallbackColor="#F8EEF2FF"/>
+        </ResourceDictionary>
+
+        <ResourceDictionary x:Key="HighContrast">
+            <!-- Accessibility: performance mode or high contrast — solid surfaces -->
+            <SolidColorBrush x:Key="Glass1Brush" Color="#FF0D1626"/>
+            <SolidColorBrush x:Key="Glass2Brush" Color="#FF111B2A"/>
+            <SolidColorBrush x:Key="Glass3Brush" Color="#FF1A2535"/>
+            <SolidColorBrush x:Key="GlassCardBrush" Color="#FF1E2A3A"/>
+            <SolidColorBrush x:Key="GlassOverlayBrush" Color="#FF080F1E"/>
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFF1F5F9"/>
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="#FF94A3B8"/>
+            <SolidColorBrush x:Key="TextDisabledBrush" Color="#FF94A3B8"/>
+            <SolidColorBrush x:Key="GlassBorderBrush" Color="#40FFFFFF"/>
+            <SolidColorBrush x:Key="GlassBorderStrongBrush" Color="#60FFFFFF"/>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#FF1E2A3A"/>
+            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#FF263346"/>
+            <SolidColorBrush x:Key="BubbleSentBrush" Color="#FF003D7A"/>
+            <SolidColorBrush x:Key="BubbleReceivedBrush" Color="#FF1C2740"/>
+            <SolidColorBrush x:Key="Bg0Brush" Color="#FF060D1A"/>
+            <SolidColorBrush x:Key="Bg1Brush" Color="#FF111827"/>
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
+
+</ResourceDictionary>
+
+

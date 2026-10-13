@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ChatListItem.xaml — Conversation list item with avatar, name, preview,
+  timestamp, unread badge, and hover animation.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="../Themes/TypographyStyles.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+
+    <Style x:Key="ChatListItemContainerStyle" TargetType="Border">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="CornerRadius" Value="{ThemeResource RadiusMD}"/>
+        <Setter Property="Padding" Value="10,8"/>
+        <Setter Property="Margin" Value="0,1"/>
+    </Style>
+
+</ResourceDictionary>
+

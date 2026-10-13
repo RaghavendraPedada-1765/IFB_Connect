@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Application
+    x:Class="IFB.Client.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:IFB.Client">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- WinUI 3 default styles -->
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+
+                <!-- IFB Design System -->
+                <ResourceDictionary Source="Themes/ColorTokens.xaml" />
+                <ResourceDictionary Source="Themes/TypographyStyles.xaml" />
+                <ResourceDictionary Source="Themes/GlassStyles.xaml" />
+                <ResourceDictionary Source="Themes/AnimationEasings.xaml" />
+                <ResourceDictionary Source="Controls/GlassCard.xaml" />
+                <ResourceDictionary Source="Controls/GlassButton.xaml" />
+                <ResourceDictionary Source="Controls/MessageBubble.xaml" />
+                <ResourceDictionary Source="Controls/PresenceAvatar.xaml" />
+                <ResourceDictionary Source="Controls/ChatListItem.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Value converters — global scope -->
+            <converters:MessageBubbleBrushConverter x:Key="MessageBubbleBrushConverter" xmlns:converters="using:IFB.Client.Converters"/>
+            <converters:MessageAlignmentConverter x:Key="MessageAlignmentConverter" xmlns:converters="using:IFB.Client.Converters"/>
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"
+                xmlns:converters="using:IFB.Client.Converters"/>
+            <converters:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter"
+                xmlns:converters="using:IFB.Client.Converters"/>
+            <converters:TimestampConverter x:Key="TimestampConverter"
+                xmlns:converters="using:IFB.Client.Converters"/>
+            <converters:NullOrEmptyToCollapsedConverter x:Key="NullOrEmptyToCollapsedConverter"
+                xmlns:converters="using:IFB.Client.Converters"/>
+            <converters:UnreadCountToVisibilityConverter x:Key="UnreadCountToVisibilityConverter"
+                xmlns:converters="using:IFB.Client.Converters"/>
+            <converters:UnreadCountDisplayConverter x:Key="UnreadCountDisplayConverter"
+                xmlns:converters="using:IFB.Client.Converters"/>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
+

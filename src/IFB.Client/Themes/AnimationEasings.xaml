@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Standard easing functions as KeySpline values (WinUI compatible) -->
+
+    <!-- Fast out, slow in — used for elements entering the screen -->
+    <x:String x:Key="EasingStandard">0.2,0,0,1</x:String>
+
+    <!-- Emphasized — for elements that move large distances -->
+    <x:String x:Key="EasingEmphasized">0.05,0.7,0.1,1</x:String>
+
+    <!-- Duration tokens as TimeSpan-compatible strings -->
+    <x:String x:Key="DurationFast">0:0:0.15</x:String>
+    <x:String x:Key="DurationNormal">0:0:0.25</x:String>
+    <x:String x:Key="DurationSlow">0:0:0.40</x:String>
+
+</ResourceDictionary>
+
