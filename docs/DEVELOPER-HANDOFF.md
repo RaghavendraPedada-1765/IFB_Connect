@@ -48,3 +48,7 @@ Review dependency licenses and confirm permission to use IFB branding in the rec
 Use a private, access-controlled transfer addressed to the intended developer, with an expiring link if supported. Send the ZIP's SHA-256 checksum through a separately verified channel. A checksum detects changes; it does not encrypt the archive. If encrypted transfer is required, use the organization's approved service or an AES-encrypted archive and communicate its password separately.
 
 The ZIP includes HANDOFF-MANIFEST.json containing SHA-256 hashes for each source file. The adjacent .sha256.txt is the hash of the entire ZIP. Compare the archive hash before extraction, using `Get-FileHash -Algorithm SHA256 <zip-path>`.
+
+## Original developer
+
+Raghavendra Pedada (Software Intern, IFB Automotive, 2026). IFB Automotive owns the software.

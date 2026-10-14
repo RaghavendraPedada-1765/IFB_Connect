@@ -24,6 +24,19 @@ public sealed partial class ConversationItemViewModel : ObservableObject
     [ObservableProperty] private DateTime _lastActivity;
     [ObservableProperty] private int _unreadCount;
     [ObservableProperty] private bool _hasUnread;
+    // Direct messages show the other person's live presence; groups and channels stay neutral.
+    [ObservableProperty] private PresenceStatus _presence;
+
+    public static PresenceStatus InitialPresence(ConversationType type, List<UserDto> members, string? myUserId) =>
+        type == ConversationType.DirectMessage
+            ? members.FirstOrDefault(m => m.Id != myUserId)?.Presence ?? PresenceStatus.Offline
+            : PresenceStatus.Offline;
+
+    public void ApplyPresence(string userId, PresenceStatus status, string? myUserId)
+    {
+        if (Type == ConversationType.DirectMessage && userId != myUserId && Members.Any(m => m.Id == userId))
+            Presence = status;
+    }
 
     // For DMs: resolve the other person's presence
     public UserDto? OtherMember(string myUserId) =>
@@ -45,7 +58,14 @@ public sealed partial class MessageItemViewModel : ObservableObject
     public void RefreshAppearance() => OnPropertyChanged(nameof(IsFromCurrentUser));
     [ObservableProperty] private string _readStatus = "";
     [ObservableProperty] private string? _replyPreview;
-    public string ReactionSummary => string.Join("  ", Reactions.Select(r => $"{(ReactionEmoji)r.Emoji} {r.Count}"));
+    public string ReactionSummary => string.Join("  ", Reactions.Select(r => $"{ReactionGlyph((ReactionEmoji)r.Emoji)} {r.Count}"));
+
+    public static string ReactionGlyph(ReactionEmoji emoji) => emoji switch
+    {
+        ReactionEmoji.ThumbsUp => "\U0001F44D", ReactionEmoji.Heart => "\u2764\uFE0F", ReactionEmoji.Laugh => "\U0001F602",
+        ReactionEmoji.Wow => "\U0001F62E", ReactionEmoji.Sad => "\U0001F622", ReactionEmoji.Clap => "\U0001F44F",
+        ReactionEmoji.Check => "\u2705", ReactionEmoji.Alert => "\u26A0\uFE0F", _ => emoji.ToString()
+    };
     partial void OnReactionsChanged(List<ReactionDto> value) => OnPropertyChanged(nameof(ReactionSummary));
     public required string Id { get; init; }
     public required string ConversationId { get; init; }
@@ -75,7 +95,8 @@ public sealed partial class MessageItemViewModel : ObservableObject
         SenderAvatarUrl = dto.SenderAvatarUrl,
         Content = dto.Content,
         FileId = dto.FileId, ReplyToId = dto.ReplyToId, IsDeleted = dto.IsDeleted,
-        ReadStatus = dto.IsRead ? "Read" : "",
+        // "Read" describes your own messages only; incoming messages never show it.
+        ReadStatus = dto.IsRead && dto.SenderId == currentUserId ? "Read" : "",
         IsEdited = dto.IsEdited,
         SentAt = dto.SentAt,
         Reactions = dto.Reactions,
@@ -223,6 +244,11 @@ public sealed partial class MainViewModel : ObservableObject
         // Hub events → update conversations list
         _hub.ConversationUpdated += OnConversationUpdated;
         _hub.MessageReceived += OnMessageReceived;
+        _hub.PresenceChanged += (_, update) =>
+        {
+            foreach (var conversation in Conversations)
+                conversation.ApplyPresence(update.UserId, update.Status, _auth.CurrentUser?.Id);
+        };
     }
 
     [RelayCommand]
@@ -261,7 +287,8 @@ public sealed partial class MainViewModel : ObservableObject
                     LastMessagePreview = c.LastMessage?.Content,
                     LastActivity = c.LastActivity,
                     UnreadCount = c.UnreadCount,
-                    HasUnread = c.UnreadCount > 0
+                    HasUnread = c.UnreadCount > 0,
+                    Presence = ConversationItemViewModel.InitialPresence(c.Type, c.Members, _auth.CurrentUser?.Id)
                 });
             }
         }
@@ -330,7 +357,8 @@ public sealed partial class MainViewModel : ObservableObject
             Conversations.Insert(0, new ConversationItemViewModel
             {
                 Id = dto.Id, Type = dto.Type, Name = dto.Name,
-                Members = dto.Members, LastActivity = dto.LastActivity
+                Members = dto.Members, LastActivity = dto.LastActivity,
+                Presence = ConversationItemViewModel.InitialPresence(dto.Type, dto.Members, _auth.CurrentUser?.Id)
             });
         }
     }

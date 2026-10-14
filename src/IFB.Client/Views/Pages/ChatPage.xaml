@@ -24,9 +24,11 @@
             </Grid>
         </Border>
         <ScrollViewer Grid.Row="1" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsRepeater x:Name="MessagesList" Margin="28,24">
-                <ItemsRepeater.Layout><StackLayout Spacing="12"/></ItemsRepeater.Layout>
-                <ItemsRepeater.ItemTemplate>
+            <!-- History is paged (50 at a time), so a non-virtualising StackPanel is cheap and keeps the
+                 scroll extent exact; ItemsRepeater's estimated extent could hide the newest message. -->
+            <ItemsControl x:Name="MessagesList" Margin="28,24">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Grid RightTapped="Message_RightTapped" ColumnSpacing="8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -54,8 +56,8 @@
                             </Border>
                         </Grid>
                     </DataTemplate>
-                </ItemsRepeater.ItemTemplate>
-            </ItemsRepeater>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </ScrollViewer>
         <Border Grid.Row="2" x:Name="ReplyBar" Padding="14,8" Margin="18,0,18,4" CornerRadius="10" Background="{ThemeResource SurfaceBrush}" Visibility="Collapsed">
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -75,7 +77,7 @@
             <Grid ColumnSpacing="4">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Button Style="{StaticResource IconGlassButtonStyle}" Content="&#xE723;" FontFamily="Segoe Fluent Icons" Click="Attach_Click" ToolTipService.ToolTip="Attach file"/>
-                <TextBox Grid.Column="1" x:Name="MessageInput" PlaceholderText="Type a message" AcceptsReturn="True" MaxLength="10000" MaxHeight="120" FontSize="14" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" TextChanged="MessageInput_TextChanged" KeyDown="MessageInput_KeyDown"/>
+                <TextBox Grid.Column="1" x:Name="MessageInput" PlaceholderText="Type a message" AcceptsReturn="True" MaxLength="10000" MaxHeight="120" FontSize="14" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" TextChanged="MessageInput_TextChanged" PreviewKeyDown="MessageInput_KeyDown"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
                     <Button Style="{StaticResource IconGlassButtonStyle}" Content="&#xE76E;" FontFamily="Segoe Fluent Icons" Click="Emoji_Click" ToolTipService.ToolTip="Emoji"/>
                     <Button x:Name="SendButton" Style="{StaticResource AccentGlassButtonStyle}" Width="40" Height="40" CornerRadius="14" Padding="0" IsEnabled="False" Click="Send_Click" AutomationProperties.Name="Send message">

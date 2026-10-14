@@ -1,5 +1,5 @@
 {
-  "testedAtUtc": "2026-10-14T04:30:52.4592065Z",
+  "testedAtUtc": "2026-10-14T05:11:07.7920948Z",
   "passed": [
     "Fresh database migrations and administrator bootstrap start successfully",
     "Anonymous directory access is rejected",

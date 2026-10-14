@@ -84,3 +84,8 @@ The desktop build and automated server tests are provided. The user reports no i
 For a source-only transfer to another developer, run `./scripts/Export-Developer-Handoff.ps1` and read [DEVELOPER-HANDOFF.md](docs/DEVELOPER-HANDOFF.md). Do not ZIP the working folder directly: it contains local account/message data and private signing keys.
 
 Voice/video calls are outside this messaging application's implemented scope; inactive call buttons were removed. Reply references provide quoted replies within the conversation rather than separate threaded discussion panes.
+
+## Credits
+
+IFB Connect was designed and developed by **Raghavendra Pedada** (Software Intern, IFB Automotive, 2026).
+© 2026 IFB Automotive. All rights reserved.

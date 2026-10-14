@@ -57,6 +57,12 @@ public sealed partial class SettingsPage : Page
             App.Current.MainWindow!.NavigateToLogin();
         }));
         panel.Children.Add(Ui.Section("Account", account));
+        var version = typeof(SettingsPage).Assembly.GetName().Version;
+        var about = new StackPanel { Spacing = 6, Padding = new Thickness(12) };
+        about.Children.Add(new TextBlock { Text = $"IFB Connect {(version == null ? "" : $"v{version.Major}.{version.Minor}.{version.Build}")}", Style = (Style)Application.Current.Resources["BodyStrongStyle"] });
+        about.Children.Add(Ui.Caption($"© {DateTime.Now.Year} IFB Automotive. All rights reserved."));
+        about.Children.Add(Ui.Caption("Developed by Raghavendra Pedada, Software Intern"));
+        panel.Children.Add(Ui.Section("About", about));
         Content = new ScrollViewer { Content = panel, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     }
 }

@@ -17,6 +17,13 @@ public sealed partial class ChatPage : Page
     private string? _conversationId;
     private System.ComponentModel.PropertyChangedEventHandler? _propertyHandler;
     private System.Collections.Specialized.NotifyCollectionChangedEventHandler? _collectionHandler;
+    private bool _stickToBottom = true;
+
+    private void ScrollToNewest()
+    {
+        MessagesScrollViewer.UpdateLayout();
+        MessagesScrollViewer.ChangeView(null, MessagesScrollViewer.ScrollableHeight, null, true);
+    }
 
     public ChatPage()
     {
@@ -25,6 +32,11 @@ public sealed partial class ChatPage : Page
         DataContext = _vm;
         Services.FluidMotion.Attach(SendButton);
         MessagesList.ItemsSource = _vm.Messages;
+        // Stay pinned to the newest message while the reader is at the bottom, including when
+        // image previews finish loading and make earlier bubbles taller.
+        MessagesScrollViewer.ViewChanged += (_, _) =>
+            _stickToBottom = MessagesScrollViewer.VerticalOffset >= MessagesScrollViewer.ScrollableHeight - 48;
+        MessagesList.SizeChanged += (_, _) => { if (_stickToBottom) ScrollToNewest(); };
         ActualThemeChanged += (_, _) => { foreach (var message in _vm.Messages) message.RefreshAppearance(); };
 
         // Observe typing indicator visibility to control animation
@@ -47,11 +59,10 @@ public sealed partial class ChatPage : Page
         // Auto-scroll to bottom when new messages arrive
         _collectionHandler = (_, e) =>
         {
-            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && e.NewStartingIndex == 0) return;
-            DispatcherQueue.TryEnqueue(
-                Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                    MessagesScrollViewer.ScrollToVerticalOffset(
-                        MessagesScrollViewer.ScrollableHeight));
+            // Only appended messages move the view; "Earlier" inserts older messages above it.
+            if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && e.NewStartingIndex < _vm.Messages.Count - 1) return;
+            _stickToBottom = true;
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, ScrollToNewest);
         };
 
         StartTypingDotAnimation();
@@ -78,6 +89,7 @@ public sealed partial class ChatPage : Page
                 {
                     ConversationTitle.Text = conv.Name;
                     HeaderAvatar.DisplayName = conv.Name;
+                    HeaderAvatar.PresenceStatus = conv.Presence;
                     ConversationSubtitle.Text =
                         $"{conv.Members.Count} members";
                 }
@@ -169,7 +181,7 @@ public sealed partial class ChatPage : Page
             Action("Delete", () => App.Services.GetRequiredService<Services.IHubConnectionService>().DeleteMessageAsync(new IFB.Shared.Contracts.DeleteMessageDto(message.Id)));
         }
         foreach (var emoji in Enum.GetValues<IFB.Shared.Enums.ReactionEmoji>())
-            Action(emoji.ToString(), () => App.Services.GetRequiredService<Services.IHubConnectionService>().ToggleReactionAsync(new IFB.Shared.Contracts.ToggleReactionDto(message.Id, (int)emoji)));
+            Action($"{MessageItemViewModel.ReactionGlyph(emoji)}  {emoji}", () => App.Services.GetRequiredService<Services.IHubConnectionService>().ToggleReactionAsync(new IFB.Shared.Contracts.ToggleReactionDto(message.Id, (int)emoji)));
         menu.ShowAt(element);
     }
 

@@ -12,6 +12,7 @@ public sealed class ChatListItem : UserControl
     public static readonly DependencyProperty UnreadCountProperty = Register(nameof(UnreadCount), typeof(int), 0);
     public static readonly DependencyProperty AvatarUrlProperty = Register(nameof(AvatarUrl), typeof(string), "");
     public static readonly DependencyProperty IsGroupProperty = Register(nameof(IsGroup), typeof(bool), false);
+    public static readonly DependencyProperty PresenceStatusProperty = Register(nameof(PresenceStatus), typeof(IFB.Shared.Enums.PresenceStatus), IFB.Shared.Enums.PresenceStatus.Offline);
     private static DependencyProperty Register(string name, Type type, object value) => DependencyProperty.Register(
         name, type, typeof(ChatListItem), new PropertyMetadata(value, (d, _) => ((ChatListItem)d).Update()));
     public string ConversationName { get => (string)GetValue(ConversationNameProperty); set => SetValue(ConversationNameProperty, value); }
@@ -20,6 +21,7 @@ public sealed class ChatListItem : UserControl
     public int UnreadCount { get => (int)GetValue(UnreadCountProperty); set => SetValue(UnreadCountProperty, value); }
     public string AvatarUrl { get => (string)GetValue(AvatarUrlProperty); set => SetValue(AvatarUrlProperty, value); }
     public bool IsGroup { get => (bool)GetValue(IsGroupProperty); set => SetValue(IsGroupProperty, value); }
+    public IFB.Shared.Enums.PresenceStatus PresenceStatus { get => (IFB.Shared.Enums.PresenceStatus)GetValue(PresenceStatusProperty); set => SetValue(PresenceStatusProperty, value); }
     private readonly TextBlock _name = new() { FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis };
     private readonly TextBlock _preview = new() { FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Opacity = .8 };
     private readonly TextBlock _time = new() { FontSize = 11, Opacity = .8 };
@@ -43,6 +45,7 @@ public sealed class ChatListItem : UserControl
     {
         _name.Text = ConversationName ?? ""; _preview.Text = string.IsNullOrEmpty(LastMessage) ? "Start a conversation" : LastMessage;
         _avatar.DisplayName = ConversationName ?? "";
+        _avatar.PresenceStatus = PresenceStatus;
         _time.Text = Timestamp == DateTime.MinValue ? "" : Timestamp.ToLocalTime().ToString("t");
         _unread.Text = UnreadCount > 99 ? "99+" : UnreadCount.ToString();
         if (_badge != null) _badge.Visibility = UnreadCount > 0 ? Visibility.Visible : Visibility.Collapsed;

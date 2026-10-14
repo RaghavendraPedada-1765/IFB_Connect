@@ -72,7 +72,7 @@
                     </StackPanel>
                     <ListView Grid.Row="1" x:Name="ConversationList" Padding="10,0" SelectionMode="Single" SelectionChanged="Conversation_Selected" ItemContainerStyle="{StaticResource GlassListViewItemStyle}">
                         <ListView.ItemTemplate><DataTemplate>
-                            <controls:ChatListItem ConversationName="{Binding Name}" LastMessage="{Binding LastMessagePreview}" Timestamp="{Binding LastActivity}" UnreadCount="{Binding UnreadCount}" AvatarUrl="{Binding AvatarUrl}" IsGroup="{Binding IsGroup}"/>
+                            <controls:ChatListItem ConversationName="{Binding Name}" LastMessage="{Binding LastMessagePreview}" Timestamp="{Binding LastActivity}" UnreadCount="{Binding UnreadCount}" PresenceStatus="{Binding Presence}" AvatarUrl="{Binding AvatarUrl}" IsGroup="{Binding IsGroup}"/>
                         </DataTemplate></ListView.ItemTemplate>
                     </ListView>
                     <Button Grid.Row="2" Margin="18,0,18,18" HorizontalAlignment="Stretch" Style="{StaticResource AccentGlassButtonStyle}" Content="New message" Click="NewConversation_Click"/>

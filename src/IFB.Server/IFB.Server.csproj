@@ -7,6 +7,13 @@
     <RootNamespace>IFB.Server</RootNamespace>
     <AssemblyName>IFB.Server</AssemblyName>
     <UserSecretsId>ifb-server-secrets</UserSecretsId>
+    <!-- Product details shown in the .exe's Properties → Details -->
+    <Version>1.0.0</Version>
+    <Product>IFB Connect</Product>
+    <Company>IFB Automotive</Company>
+    <Authors>Raghavendra Pedada</Authors>
+    <Copyright>© 2026 IFB Automotive. All rights reserved.</Copyright>
+    <Description>IFB Connect server. Developed by Raghavendra Pedada.</Description>
   </PropertyGroup>
 
   <ItemGroup>
