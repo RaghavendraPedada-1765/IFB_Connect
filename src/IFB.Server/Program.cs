@@ -2,7 +2,6 @@ using IFB.Server.Auth;
 using IFB.Server.Data;
 using IFB.Server.Hubs;
 using IFB.Server.Middleware;
-using IFB.Server.Repositories;
 using IFB.Server.Services;
 using IFB.Server.Workers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -116,6 +115,13 @@ try
             _ => new FixedWindowRateLimiterOptions { PermitLimit = loginPerMin,
                 Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 
+        // Refresh is called routinely by every client, so it gets a looser per-address budget than login.
+        var refreshPerMin = int.Parse(config["RateLimiting:RefreshPerMinute"] ?? "30");
+        opts.AddPolicy("refresh", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = refreshPerMin,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+
         opts.RejectionStatusCode = 429;
     });
 
@@ -148,15 +154,12 @@ try
     builder.Services.AddScoped<IConversationService, ConversationService>();
     builder.Services.AddScoped<IAuditService, AuditService>();
 
-    // ── Repositories ──────────────────────────────────────────────────────────
-    builder.Services.AddScoped<IMessageRepository, MessageRepository>();
-    builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
-    builder.Services.AddScoped<IAuditRepository, AuditRepository>();
 
     // Singleton presence tracker (in-memory, swap for Redis in large deployments)
     builder.Services.AddSingleton<IPresenceTracker, InMemoryPresenceTracker>();
 
-    // Background workers
+    // Background workers. A failing worker logs and retries instead of stopping the whole server.
+    builder.Services.Configure<HostOptions>(o => o.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
     builder.Services.AddHostedService<UdpDiscoveryWorker>();
     builder.Services.AddHostedService<RetentionWorker>();
     builder.Services.AddHostedService<OfflineQueueWorker>();

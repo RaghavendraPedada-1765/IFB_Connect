@@ -11,7 +11,7 @@ An on-premises Windows 10/11 messaging app for IFB Automotive. The client uses W
 - Priority announcements which remain visible until acknowledged.
 - Desktop notifications, system tray controls, Do Not Disturb, saved settings, light/dark/system themes and solid-surface performance mode.
 - Administration for users, roles, groups, channels, retention, connected clients, session invalidation, announcements and CSV audit export.
-- Separate SQLite and SQL Server migrations, offline release packaging and installation scripts.
+- Separate SQLite and SQL Server migrations (in `src/IFB.Server/Data`, which must stay under source control), offline release packaging and installation scripts.
 
 ## Development setup
 
@@ -60,6 +60,8 @@ Server settings are in `src/IFB.Server/appsettings.json`; client defaults are in
 | `FileStorage:AntivirusCommand` / `AntivirusArgs` | Local scanner invocation; `{filePath}` is substituted. Nonzero exit codes reject the file. |
 | `FileStorage:SkipAvScanIfMissing` | Defaults to false. Explicitly enabling it permits unscanned files and logs that decision. |
 | `Retention:DefaultDays` | Default channel retention; administrators can change it per conversation. |
+| `Retention:AuditDays` | Audit entries older than this are deleted by the nightly retention job (default 365; 0 keeps them forever). Only state-changing calls, administration and file downloads are audited. |
+| `FileStorage:BasePath` | Attachment storage, default `storage/files` relative to the server folder. Never point it inside the source tree. |
 
 Production setup is described in [DEPLOYMENT.md](docs/DEPLOYMENT.md). Architecture, schema, design system and validation details are in [ARCHITECTURE.md](docs/ARCHITECTURE.md), [DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) and [TEST-PLAN.md](docs/TEST-PLAN.md).
 

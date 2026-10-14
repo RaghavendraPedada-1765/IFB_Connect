@@ -23,7 +23,7 @@ The spacing scale is 4, 8, 12, 16, 24, 32 and 48 pixels. Standard corners are 8,
 
 ## Layout and motion
 
-The shell has a 56-pixel navigation rail, a 280-pixel conversation pane and a flexible main pane. Native Mica/Acrylic creates the window backdrop and panel depth; solid fallback colors keep text readable without transparency. Settings apply light, dark or Windows-default appearance. RDP and disabled Windows transparency trigger performance mode.
+The shell has a labelled navigation sidebar (Messages, Channels, People, Files, Settings) with the signed-in identity at its foot, a conversation column that hides on non-chat pages, and a flexible main pane (see APPLE-REDESIGN.md). Native Mica/Acrylic creates the window backdrop and panel depth; solid fallback colors keep text readable without transparency. Settings apply light, dark or Windows-default appearance. RDP and disabled Windows transparency trigger performance mode.
 
 Navigation uses native transitions. Control hover/press, send feedback, typing dots and urgent banners provide motion. Motion helpers check Windows animation settings and performance mode. Long histories use ItemsRepeater with StackLayout; directory/file/admin lists use virtualized ListView controls. Older history loads in pages rather than loading an entire conversation.
 

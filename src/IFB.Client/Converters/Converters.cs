@@ -2,12 +2,23 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 
 namespace IFB.Client.Converters;
+public sealed class FileSizeConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        var bytes = System.Convert.ToDouble(value);
+        return bytes >= 1048576 ? $"{bytes / 1048576:0.#} MB" : bytes >= 1024 ? $"{bytes / 1024:0.#} KB" : $"{bytes:0} bytes";
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotSupportedException();
+}
 public sealed class MessageBubbleBrushConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
+        if (new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast)
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(new Windows.UI.ViewManagement.UISettings().GetColorValue(Windows.UI.ViewManagement.UIColorType.Background));
         var dark = (App.Current.MainWindow?.Content as FrameworkElement)?.ActualTheme == ElementTheme.Dark;
-        var color = value is true ? (dark ? "#274A39" : "#E1F2CF") : (dark ? "#243247" : "#F8FBFF");
+        var color = value is true ? (dark ? "#193B5A" : "#E4EEF9") : (dark ? "#303238" : "#FFFFFF");
         return new Microsoft.UI.Xaml.Media.SolidColorBrush(Services.ThemeTokens.Parse(color));
     }
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotSupportedException();

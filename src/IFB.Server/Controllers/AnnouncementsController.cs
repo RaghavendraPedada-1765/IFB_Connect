@@ -86,10 +86,14 @@ public sealed class AnnouncementsController : ControllerBase
             ExpiresAt = dto.ExpiresAt
         };
 
+        if (dto.ExpiresAt != null && dto.ExpiresAt <= DateTime.UtcNow) return BadRequest("Expiry must be in the future.");
+
         _db.Announcements.Add(ann);
         await _db.SaveChangesAsync();
+        // Use the same author name as GET /announcements (User.Identity.Name is the username).
+        var authorName = await _db.Users.Where(u => u.Id == userId).Select(u => u.DisplayName).FirstOrDefaultAsync() ?? "Administrator";
         await _hub.Clients.All.AnnouncementPostedAsync(new IFB.Shared.DTOs.AnnouncementDto(
-            ann.Id, ann.Title, ann.Content, User.Identity?.Name ?? "Administrator", ann.Priority, ann.PostedAt, ann.ExpiresAt, false));
+            ann.Id, ann.Title, ann.Content, authorName, ann.Priority, ann.PostedAt, ann.ExpiresAt, false));
         _logger.LogInformation("Announcement posted: '{Title}' priority={P}", ann.Title, ann.Priority);
 
         return CreatedAtAction(nameof(GetAll), null, ann);

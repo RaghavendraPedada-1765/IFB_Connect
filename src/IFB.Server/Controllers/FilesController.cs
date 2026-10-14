@@ -68,8 +68,11 @@ public sealed class FilesController : ControllerBase
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "IFBConnect", "files");
 
-        var datePart = DateTime.UtcNow.ToString("yyyy/MM/dd");
-        var folder = Path.Combine(basePath, datePart);
+        // Build year/month/day folders explicitly; "yyyy/MM/dd" uses the culture's date separator.
+        var today = DateTime.UtcNow;
+        var folder = Path.Combine(basePath, today.ToString("yyyy", System.Globalization.CultureInfo.InvariantCulture),
+            today.ToString("MM", System.Globalization.CultureInfo.InvariantCulture),
+            today.ToString("dd", System.Globalization.CultureInfo.InvariantCulture));
         Directory.CreateDirectory(folder);
 
         var fileId = Guid.NewGuid().ToString();
@@ -198,12 +201,10 @@ public sealed class FilesController : ControllerBase
 
         if (attachment == null) return NotFound();
 
-        if (attachment.ConversationId != null)
-        {
-            var isMember = await _db.ConversationMembers
-                .AnyAsync(m => m.ConversationId == attachment.ConversationId && m.UserId == userId);
-            if (!isMember) return Forbid();
-        }
+        if (attachment.ConversationId == null) return Forbid();
+        var isMember = await _db.ConversationMembers
+            .AnyAsync(m => m.ConversationId == attachment.ConversationId && m.UserId == userId);
+        if (!isMember) return Forbid();
 
         return Ok(new FileInfoDto(
             attachment.Id,

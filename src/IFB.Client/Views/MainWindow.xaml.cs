@@ -33,6 +33,8 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppTitleBar.SizeChanged += (_, _) => UpdateTitleBarDragRegions();
+        RootGrid.ActualThemeChanged += (_, _) => UpdateCaptionColours();
+        Activated += (_, _) => UpdateCaptionColours();
 
         _hub = App.Services.GetRequiredService<IHubConnectionService>();
         _nav = App.Services.GetRequiredService<INavigationService>();
@@ -65,7 +67,7 @@ public sealed partial class MainWindow : Window
         // Collapse the three-pane shell and show just the login frame
         if (RootGrid != null) RootGrid.Visibility = Visibility.Collapsed;
         LoginFrame.Visibility = Visibility.Visible;
-        LoginFrame.Navigate(typeof(LoginPage), null, new DrillInNavigationTransitionInfo());
+        LoginFrame.Navigate(typeof(LoginPage), null, new SuppressNavigationTransitionInfo());
     }
 
     public async void NavigateToMain()
@@ -83,6 +85,7 @@ public sealed partial class MainWindow : Window
         catch (Exception ex) { await Ui.Error(RootGrid!, ex); }
 
         SelfAvatar.DisplayName = App.Services.GetRequiredService<IClientAuthService>().CurrentUser?.DisplayName ?? "IFB";
+        SelfName.Text = SelfAvatar.DisplayName;
         SelfAvatar.PresenceStatus = PresenceStatus.Online;
         MainFrame.Content = null;
         EmptyState.Visibility = Visibility.Visible;
@@ -99,7 +102,10 @@ public sealed partial class MainWindow : Window
             child.IsSelected = child == btn;
         }
 
-        PaneTitle.Text = btn.Tag?.ToString() ?? "Chats";
+        var chats = btn.Tag?.ToString() == "Chats";
+        ConversationListPane.Visibility = chats ? Visibility.Visible : Visibility.Collapsed;
+        ConversationPaneColumn.Width = new GridLength(chats ? 286 : 0);
+        PaneTitle.Text = "Messages";
         EmptyState.Visibility = Visibility.Collapsed;
 
         switch (btn.Tag?.ToString())
@@ -112,31 +118,19 @@ public sealed partial class MainWindow : Window
                 break;
 
             case "Channels":
-                MainFrame.Navigate(typeof(ChannelsPage), null, new SlideNavigationTransitionInfo
-                {
-                    Effect = SlideNavigationTransitionEffect.FromRight
-                });
+                MainFrame.Navigate(typeof(ChannelsPage), null, new SuppressNavigationTransitionInfo());
                 break;
 
             case "Directory":
-                MainFrame.Navigate(typeof(DirectoryPage), null, new SlideNavigationTransitionInfo
-                {
-                    Effect = SlideNavigationTransitionEffect.FromRight
-                });
+                MainFrame.Navigate(typeof(DirectoryPage), null, new SuppressNavigationTransitionInfo());
                 break;
 
             case "Files":
-                MainFrame.Navigate(typeof(FilesPage), null, new SlideNavigationTransitionInfo
-                {
-                    Effect = SlideNavigationTransitionEffect.FromRight
-                });
+                MainFrame.Navigate(typeof(FilesPage), null, new SuppressNavigationTransitionInfo());
                 break;
 
             case "Settings":
-                MainFrame.Navigate(typeof(SettingsPage), null, new SlideNavigationTransitionInfo
-                {
-                    Effect = SlideNavigationTransitionEffect.FromRight
-                });
+                MainFrame.Navigate(typeof(SettingsPage), null, new SuppressNavigationTransitionInfo());
                 break;
         }
     }
@@ -148,10 +142,7 @@ public sealed partial class MainWindow : Window
             if (DataContext is ViewModels.MainViewModel main) main.SelectConversationCommand.Execute(conv);
             EmptyState.Visibility = Visibility.Collapsed;
             MainFrame.Navigate(typeof(ChatPage), conv.Id,
-                new SlideNavigationTransitionInfo
-                {
-                    Effect = SlideNavigationTransitionEffect.FromRight
-                });
+                new SuppressNavigationTransitionInfo());
         }
     }
 
@@ -178,6 +169,17 @@ public sealed partial class MainWindow : Window
         var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(handle));
         appWindow.TitleBar.SetDragRectangles(regions.ToArray());
+    }
+
+    private void UpdateCaptionColours()
+    {
+        var handle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        if (handle == IntPtr.Zero) return;
+        var title = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(handle)).TitleBar;
+        title.ButtonBackgroundColor = Microsoft.UI.Colors.Transparent;
+        title.ButtonInactiveBackgroundColor = Microsoft.UI.Colors.Transparent;
+        title.ButtonForegroundColor = RootGrid.ActualTheme == ElementTheme.Dark ? Microsoft.UI.Colors.White : Microsoft.UI.Colors.Black;
+        title.ButtonInactiveForegroundColor = Services.ThemeTokens.Parse("#7A818C");
     }
 
     private void Search_TextChanged(Microsoft.UI.Xaml.Controls.AutoSuggestBox sender,
@@ -230,7 +232,7 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    public void OpenAdmin() { EmptyState.Visibility = Visibility.Collapsed; MainFrame.Navigate(typeof(AdminPage)); }
+    public void OpenAdmin() { EmptyState.Visibility = Visibility.Collapsed; ConversationListPane.Visibility = Visibility.Collapsed; ConversationPaneColumn.Width = new GridLength(0); MainFrame.Navigate(typeof(AdminPage)); }
     private async void Reconnect_Click(object sender, TappedRoutedEventArgs e)
     { try { await _hub.ConnectAsync(); await App.Services.GetRequiredService<ViewModels.MainViewModel>().RefreshConversationsAsync(); } catch (Exception ex) { await Ui.Error(RootGrid, ex); } }
 
@@ -238,12 +240,16 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            ConversationListPane.Visibility = Visibility.Visible;
+            ConversationPaneColumn.Width = new GridLength(286);
+            foreach (var button in (IconRail.Child as FrameworkElement)?.GetChildrenOfType<Controls.NavRailButton>() ?? Enumerable.Empty<Controls.NavRailButton>())
+                button.IsSelected = button == NavChats;
             var main = App.Services.GetRequiredService<ViewModels.MainViewModel>();
             await main.RefreshConversationsAsync(); ConversationList.ItemsSource = main.Conversations;
             var conversation = main.Conversations.FirstOrDefault(c => c.Id == id);
             if (conversation != null) { main.SelectedConversation = conversation; ConversationList.SelectedItem = conversation; }
             await _hub.JoinConversationAsync(id); EmptyState.Visibility = Visibility.Collapsed;
-            MainFrame.Navigate(typeof(ChatPage), id, new DrillInNavigationTransitionInfo());
+            MainFrame.Navigate(typeof(ChatPage), id, new SuppressNavigationTransitionInfo());
         }
         catch (Exception ex) { await Ui.Error(RootGrid, ex); }
     }
@@ -271,7 +277,7 @@ public sealed partial class MainWindow : Window
         var panel = new StackPanel { Spacing = 12 }; panel.Children.Add(status); panel.Children.Add(list); panel.Children.Add(users);
         panel.Children.Add(Ui.Row(Ui.Button("Add", async () => { if (users.SelectedItem is UserDto u) await api.SendAsync(HttpMethod.Post, $"api/v1/conversations/{id}/members/{u.Id}"); list.ItemsSource = await api.GetAsync<List<MemberInfo>>($"api/v1/conversations/{id}/members"); }),
             Ui.Button("Remove selected", async () => { if (list.SelectedItem is MemberInfo m) await api.SendAsync(HttpMethod.Delete, $"api/v1/conversations/{id}/members/{m.Id}"); list.ItemsSource = await api.GetAsync<List<MemberInfo>>($"api/v1/conversations/{id}/members"); })));
-        await new ContentDialog { XamlRoot = RootGrid.XamlRoot, Title = "Conversation members", Content = panel, CloseButtonText = "Close" }.ShowAsync();
+        await new ContentDialog { RequestedTheme = RootGrid.ActualTheme, XamlRoot = RootGrid.XamlRoot, Title = "Conversation members", Content = panel, CloseButtonText = "Close" }.ShowAsync();
     }
 }
 public record MemberInfo(string Id, string DisplayName, string? AvatarUrl, bool IsAdmin, PresenceStatus Presence, DateTime JoinedAt);
@@ -290,3 +296,5 @@ public static class VisualTreeExtensions
         }
     }
 }
+
+

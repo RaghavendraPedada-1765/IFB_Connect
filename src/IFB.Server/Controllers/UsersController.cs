@@ -129,9 +129,22 @@ public sealed class UsersController : ControllerBase
         var user = await _db.Users.FindAsync(userId);
         if (user == null) return NotFound();
 
-        if (!string.IsNullOrWhiteSpace(dto.DisplayName))
+        // Names and departments identify people in every chat, so only administrators may change
+        // them (Administration → Edit user); AD accounts also resync them at sign-in. Employees may
+        // update their own job title.
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && ((dto.DisplayName != null && dto.DisplayName.Trim() != user.DisplayName) ||
+                         (dto.Department != null && dto.Department.Trim() != (user.Department ?? ""))))
+            return StatusCode(StatusCodes.Status403Forbidden, "Display name and department are managed by an administrator.");
+        if (dto.DisplayName?.Trim().Length > 128 || dto.Title?.Trim().Length > 128 || dto.Department?.Trim().Length > 128)
+            return BadRequest("Name, title and department are limited to 128 characters.");
+
+        if (isAdmin && !string.IsNullOrWhiteSpace(dto.DisplayName))
             user.DisplayName = dto.DisplayName.Trim();
-        user.Title = dto.Title?.Trim(); user.Department = dto.Department?.Trim();
+        if (isAdmin && dto.Department != null)
+            user.Department = string.IsNullOrWhiteSpace(dto.Department) ? null : dto.Department.Trim();
+        if (dto.Title != null)
+            user.Title = string.IsNullOrWhiteSpace(dto.Title) ? null : dto.Title.Trim();
 
         await _db.SaveChangesAsync();
         return NoContent();
@@ -146,8 +159,15 @@ public sealed class UsersController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(dto.Username) || string.IsNullOrWhiteSpace(dto.Password))
             return BadRequest("Username and password required.");
+        // Must match how sign-in normalises usernames (lower-case, no domain prefix, no LDAP specials).
+        var username = dto.Username.Trim().ToLowerInvariant();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(username, "^[a-z0-9._-]{2,64}$"))
+            return BadRequest("Usernames use 2–64 letters, digits, dots, hyphens or underscores.");
+        if (dto.DisplayName?.Trim().Length > 128 || dto.Email?.Trim().Length > 256 ||
+            dto.Department?.Length > 128 || dto.Title?.Length > 128)
+            return BadRequest("Name, department and title are limited to 128 characters; email to 256.");
 
-        var exists = await _db.Users.AnyAsync(u => u.Username == dto.Username.ToLower());
+        var exists = await _db.Users.AnyAsync(u => u.Username == username);
         if (exists) return Conflict("Username already exists.");
 
         if (dto.Password.Length < 12 || string.IsNullOrWhiteSpace(dto.DisplayName) ||
@@ -158,9 +178,9 @@ public sealed class UsersController : ControllerBase
         var user = new User
         {
             Id = Guid.NewGuid().ToString(),
-            Username = dto.Username.ToLower(),
-            DisplayName = dto.DisplayName,
-            Email = dto.Email,
+            Username = username,
+            DisplayName = dto.DisplayName.Trim(),
+            Email = dto.Email.Trim(),
             Department = dto.Department,
             Title = dto.Title,
             Role = dto.Role,

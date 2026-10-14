@@ -23,38 +23,38 @@
     "offline": "#6B7280"
   },
   "dark": {
-    "bg0": "#0A0F1E",
-    "bg1": "#111827",
-    "bg2": "#1A2235",
-    "bg3": "#232E42",
+    "bg0": "#18191C",
+    "bg1": "#202125",
+    "bg2": "#282A2F",
+    "bg3": "#23252A",
     "surface": "#1E2A3A",
     "surfaceHover": "#263346",
     "border": "#FFFFFF18",
     "borderStrong": "#FFFFFF30",
-    "text": "#F1F5F9",
-    "textSecondary": "#94A3B8",
-    "textDisabled": "#94A3B8",
+    "text": "#F5F5F7",
+    "textSecondary": "#B8BDC7",
+    "textDisabled": "#A5ADB9",
     "glass": "#1A2235CC",
     "glassTint": "#0055A510",
     "glassBlur": 32,
-    "glassOpacity": 0.65
+    "glassOpacity": 0.86
   },
   "light": {
-    "bg0": "#EEF2FF",
-    "bg1": "#F8FAFF",
+    "bg0": "#F5F5F7",
+    "bg1": "#ECEDEF",
     "bg2": "#FFFFFF",
-    "bg3": "#F0F4FF",
+    "bg3": "#F7F8FA",
     "surface": "#FFFFFFCC",
     "surfaceHover": "#F0F4FFCC",
     "border": "#00000012",
     "borderStrong": "#00000025",
-    "text": "#0F172A",
-    "textSecondary": "#475569",
-    "textDisabled": "#64748B",
+    "text": "#202124",
+    "textSecondary": "#5B616B",
+    "textDisabled": "#626873",
     "glass": "#FFFFFFb3",
     "glassTint": "#0055A508",
     "glassBlur": 24,
-    "glassOpacity": 0.55
+    "glassOpacity": 0.88
   },
   "elevation": {
     "e0": {

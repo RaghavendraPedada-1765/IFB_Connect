@@ -64,7 +64,7 @@ public sealed class UdpDiscoveryWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "UDP discovery error");
-                await Task.Delay(1000, ct);
+                try { await Task.Delay(1000, ct); } catch (OperationCanceledException) { break; }
             }
         }
     }
@@ -88,12 +88,16 @@ public sealed class RetentionWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        var intervalHours = int.Parse(_config["Retention:RunCleanupIntervalHours"] ?? "24");
+        var intervalHours = Math.Max(1, int.Parse(_config["Retention:RunCleanupIntervalHours"] ?? "24"));
 
+        // Run shortly after startup (not a full interval later) so servers restarted daily still clean up.
+        try { await Task.Delay(TimeSpan.FromMinutes(2), ct); } catch (OperationCanceledException) { return; }
         while (!ct.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromHours(intervalHours), ct);
-            await RunCleanupAsync(ct);
+            try { await RunCleanupAsync(ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
+            catch (Exception ex) { _logger.LogError(ex, "Retention cleanup failed; it will be retried at the next interval."); }
+            try { await Task.Delay(TimeSpan.FromHours(intervalHours), ct); } catch (OperationCanceledException) { return; }
         }
     }
 
@@ -113,12 +117,25 @@ public sealed class RetentionWorker : BackgroundService
                 .ExecuteUpdateAsync(s => s.SetProperty(m => m.ReplyToId, (string?)null), ct);
             await db.OfflineMessages.Where(o => db.Messages.Any(m => m.Id == o.MessageId && m.ConversationId == conv.Id && m.SentAt < cutoff)).ExecuteDeleteAsync(ct);
             var oldFiles = await db.FileAttachments.Where(f => f.ConversationId == conv.Id && f.UploadedAt < cutoff).ToListAsync(ct);
-            foreach (var file in oldFiles) { if (System.IO.File.Exists(file.StoragePath)) System.IO.File.Delete(file.StoragePath); }
+            foreach (var file in oldFiles)
+            {
+                try { if (System.IO.File.Exists(file.StoragePath)) System.IO.File.Delete(file.StoragePath); }
+                catch (IOException ex) { _logger.LogWarning(ex, "Could not delete expired attachment {FileId}", file.Id); }
+                catch (UnauthorizedAccessException ex) { _logger.LogWarning(ex, "Could not delete expired attachment {FileId}", file.Id); }
+            }
             db.FileAttachments.RemoveRange(oldFiles); await db.SaveChangesAsync(ct);
             deleted += await old.ExecuteDeleteAsync(ct);
         }
 
-        _logger.LogInformation("Retention cleanup: deleted {Count} messages", deleted);
+        var auditDays = _config.GetValue("Retention:AuditDays", 365);
+        var auditDeleted = 0;
+        if (auditDays > 0)
+        {
+            var auditCutoff = DateTime.UtcNow.AddDays(-auditDays);
+            auditDeleted = await db.AuditLogs.Where(l => l.Timestamp < auditCutoff).ExecuteDeleteAsync(ct);
+        }
+
+        _logger.LogInformation("Retention cleanup: deleted {Count} messages and {AuditCount} audit entries", deleted, auditDeleted);
     }
 }
 
@@ -142,13 +159,18 @@ public sealed class OfflineQueueWorker : BackgroundService
         // Clean up delivered messages every 10 minutes
         while (!ct.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromMinutes(10), ct);
-            using var scope = _scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<IFB.Server.Data.AppDbContext>();
-            var cutoff = DateTime.UtcNow.AddDays(-7);
-            await db.OfflineMessages
-                .Where(o => o.IsDelivered || o.QueuedAt < cutoff)
-                .ExecuteDeleteAsync(ct);
+            try { await Task.Delay(TimeSpan.FromMinutes(10), ct); } catch (OperationCanceledException) { return; }
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IFB.Server.Data.AppDbContext>();
+                var cutoff = DateTime.UtcNow.AddDays(-7);
+                await db.OfflineMessages
+                    .Where(o => o.IsDelivered || o.QueuedAt < cutoff)
+                    .ExecuteDeleteAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
+            catch (Exception ex) { _logger.LogError(ex, "Offline queue cleanup failed; it will be retried."); }
         }
     }
 }

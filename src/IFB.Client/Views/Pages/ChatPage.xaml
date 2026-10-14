@@ -8,13 +8,13 @@
             <RowDefinition Height="Auto"/><RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <Border Padding="18,12" BorderBrush="{ThemeResource GlassBorderBrush}" BorderThickness="0,0,0,1">
+        <Border Padding="24,18" BorderBrush="{ThemeResource GlassBorderBrush}" BorderThickness="0,0,0,1">
             <Grid ColumnSpacing="10">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <controls:PresenceAvatar x:Name="HeaderAvatar" Size="32" VerticalAlignment="Center"/>
+                <controls:PresenceAvatar x:Name="HeaderAvatar" Size="40" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                    <TextBlock x:Name="ConversationTitle" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource TextPrimaryBrush}"/>
-                    <TextBlock x:Name="ConversationSubtitle" FontSize="11" Foreground="{ThemeResource TextSecondaryBrush}"/>
+                    <TextBlock x:Name="ConversationTitle" FontSize="16" FontWeight="SemiBold" Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <TextBlock x:Name="ConversationSubtitle" FontSize="12" Foreground="{ThemeResource TextSecondaryBrush}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
                     <Button Content="Earlier" Click="LoadMore_Click" FontSize="11" CornerRadius="12" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Load earlier messages"/>
@@ -24,30 +24,30 @@
             </Grid>
         </Border>
         <ScrollViewer Grid.Row="1" x:Name="MessagesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsRepeater x:Name="MessagesList" Margin="20,18">
-                <ItemsRepeater.Layout><StackLayout Spacing="8"/></ItemsRepeater.Layout>
+            <ItemsRepeater x:Name="MessagesList" Margin="28,24">
+                <ItemsRepeater.Layout><StackLayout Spacing="12"/></ItemsRepeater.Layout>
                 <ItemsRepeater.ItemTemplate>
                     <DataTemplate>
                         <Grid RightTapped="Message_RightTapped" ColumnSpacing="8">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <controls:PresenceAvatar Size="26" DisplayName="{Binding SenderDisplayName}" VerticalAlignment="Bottom" Visibility="{Binding IsFromCurrentUser, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
-                            <Border Grid.Column="1" MaxWidth="460" MinWidth="100" Padding="12,8" CornerRadius="14"
+                            <Border Grid.Column="1" MaxWidth="520" MinWidth="100" Padding="16,12" CornerRadius="18"
                                     BorderThickness="1" BorderBrush="{ThemeResource GlassBorderBrush}"
                                     Background="{Binding IsFromCurrentUser, Converter={StaticResource MessageBubbleBrushConverter}}"
                                     HorizontalAlignment="{Binding IsFromCurrentUser, Converter={StaticResource MessageAlignmentConverter}}">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding SenderDisplayName}" FontSize="10" FontWeight="SemiBold" Foreground="{ThemeResource TextSecondaryBrush}" Visibility="{Binding IsFromCurrentUser, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
+                                    <TextBlock Text="{Binding SenderDisplayName}" FontSize="11" FontWeight="SemiBold" Foreground="{ThemeResource TextSecondaryBrush}" Visibility="{Binding IsFromCurrentUser, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
                                     <TextBlock Text="{Binding ReplyPreview}" FontSize="11" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TextSecondaryBrush}" Visibility="{Binding ReplyPreview, Converter={StaticResource NullOrEmptyToCollapsedConverter}}"/>
-                                    <TextBlock Text="{Binding Content}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TextPrimaryBrush}"/>
-                                    <Image Loaded="AttachmentPreview_Loaded" MaxWidth="320" Height="160" Stretch="Uniform" Visibility="{Binding HasImageAttachment, Converter={StaticResource BoolToVisibilityConverter}}" AutomationProperties.Name="Shared image preview"/>
+                                    <TextBlock Text="{Binding Content}" FontSize="14" LineHeight="22" TextWrapping="Wrap" Foreground="{ThemeResource TextPrimaryBrush}"/>
+                                    <Image Loaded="AttachmentPreview_Loaded" DataContextChanged="AttachmentPreview_DataContextChanged" Width="280" MaxWidth="320" Height="160" Stretch="Uniform" Visibility="{Binding HasImageAttachment, Converter={StaticResource BoolToVisibilityConverter}}" AutomationProperties.Name="Shared image preview"/>
                                     <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{Binding HasFile, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <Button Content="Download" Click="Download_Click" FontSize="11" CornerRadius="8" Padding="8,4"/>
                                         <Button Content="Preview" Click="Preview_Click" FontSize="11" CornerRadius="8" Padding="8,4"/>
                                     </StackPanel>
                                     <TextBlock Text="{Binding ReactionSummary}" FontSize="12" Visibility="{Binding ReactionSummary, Converter={StaticResource NullOrEmptyToCollapsedConverter}}"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-                                        <TextBlock Text="{Binding Timestamp}" FontSize="10" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding ReadStatus}" FontSize="10" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Timestamp}" FontSize="11" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding ReadStatus}" FontSize="11" Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                                         <Button Content="&#xE712;" FontFamily="Segoe Fluent Icons" FontSize="12" Padding="3,0" MinWidth="20" MinHeight="20" Background="Transparent" BorderThickness="0" Click="MessageActions_Click" ToolTipService.ToolTip="Reply, react or edit" AutomationProperties.Name="Message actions"/>
                                     </StackPanel>
                                 </StackPanel>
@@ -68,17 +68,17 @@
                 <Ellipse x:Name="Dot1" Width="4" Height="4" Fill="{ThemeResource TextSecondaryBrush}"/>
                 <Ellipse x:Name="Dot2" Width="4" Height="4" Fill="{ThemeResource TextSecondaryBrush}"/>
                 <Ellipse x:Name="Dot3" Width="4" Height="4" Fill="{ThemeResource TextSecondaryBrush}"/>
-                <TextBlock x:Name="TypingLabel" FontSize="11" Foreground="{ThemeResource TextSecondaryBrush}"/>
+                <TextBlock x:Name="TypingLabel" FontSize="12" Foreground="{ThemeResource TextSecondaryBrush}"/>
             </StackPanel>
         </Border>
-        <Border Grid.Row="4" Padding="8,4" Margin="16,8,16,14" CornerRadius="24" Background="{ThemeResource SurfaceBrush}" BorderBrush="{ThemeResource GlassBorderStrongBrush}" BorderThickness="1">
+        <Border Grid.Row="4" Padding="8,4" Margin="24,12,24,24" CornerRadius="20" Background="{ThemeResource SurfaceBrush}" BorderBrush="{ThemeResource GlassBorderStrongBrush}" BorderThickness="1">
             <Grid ColumnSpacing="4">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Button Style="{StaticResource IconGlassButtonStyle}" Content="&#xE723;" FontFamily="Segoe Fluent Icons" Click="Attach_Click" ToolTipService.ToolTip="Attach file"/>
-                <TextBox Grid.Column="1" x:Name="MessageInput" PlaceholderText="Type a message" AcceptsReturn="True" MaxLength="10000" MaxHeight="120" FontSize="13" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" TextChanged="MessageInput_TextChanged" KeyDown="MessageInput_KeyDown"/>
+                <TextBox Grid.Column="1" x:Name="MessageInput" PlaceholderText="Type a message" AcceptsReturn="True" MaxLength="10000" MaxHeight="120" FontSize="14" VerticalAlignment="Center" Background="Transparent" BorderThickness="0" TextChanged="MessageInput_TextChanged" KeyDown="MessageInput_KeyDown"/>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
                     <Button Style="{StaticResource IconGlassButtonStyle}" Content="&#xE76E;" FontFamily="Segoe Fluent Icons" Click="Emoji_Click" ToolTipService.ToolTip="Emoji"/>
-                    <Button x:Name="SendButton" Style="{StaticResource AccentGlassButtonStyle}" Width="34" Height="34" CornerRadius="17" Padding="0" IsEnabled="False" Click="Send_Click" AutomationProperties.Name="Send message">
+                    <Button x:Name="SendButton" Style="{StaticResource AccentGlassButtonStyle}" Width="40" Height="40" CornerRadius="14" Padding="0" IsEnabled="False" Click="Send_Click" AutomationProperties.Name="Send message">
                         <FontIcon Glyph="&#xE724;" FontFamily="Segoe Fluent Icons" FontSize="14" Foreground="White"/>
                     </Button>
                 </StackPanel>
@@ -86,3 +86,4 @@
         </Border>
     </Grid>
 </Page>
+

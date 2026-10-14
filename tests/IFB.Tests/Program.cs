@@ -82,6 +82,12 @@ try
     await aliceHub.InvokeAsync(nameof(IServerHub.SendMessageAsync), new SendMessageDto(dm.Id, "Offline delivery test", IFB.Shared.Enums.MessageType.Text, null, null));
     var message = await aliceMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
     Check(message.Content == "Offline delivery test", "SignalR sends and persists a real message");
+    var aliceConversations = (await aliceClient.GetFromJsonAsync<List<ConversationDto>>("api/v1/conversations"))!;
+    var bobConversations = (await bobClient.GetFromJsonAsync<List<ConversationDto>>("api/v1/conversations"))!;
+    var eveConversations = (await eveClient.GetFromJsonAsync<List<ConversationDto>>("api/v1/conversations"))!;
+    Check(aliceConversations.Any(c => c.Id == dm.Id && c.LastMessage?.Id == message.Id && c.UnreadCount == 0), "Conversation list returns the latest preview without counting the sender's own message as unread");
+    Check(bobConversations.Any(c => c.Id == dm.Id && c.UnreadCount == 1), "Recipient's conversation list includes unread incoming messages");
+    Check(eveConversations.All(c => c.Id != dm.Id), "Conversation list excludes conversations the employee has not joined");
     await using var bobHub = Hub(bob.AccessToken); var offlineMessage = new TaskCompletionSource<MessageDto>(TaskCreationOptions.RunContinuationsAsynchronously);
     bobHub.On<MessageDto>(nameof(IClientHub.MessageReceivedAsync), m => offlineMessage.TrySetResult(m)); await bobHub.StartAsync();
     Check((await offlineMessage.Task.WaitAsync(TimeSpan.FromSeconds(5))).Id == message.Id, "Offline queue delivers on reconnect");
@@ -159,6 +165,38 @@ try
     Check((await bobClient.GetAsync("api/v1/auth/me")).StatusCode == HttpStatusCode.Unauthorized, "Force logout invalidates existing access token");
     Check((await Post(anonymous, "api/v1/auth/refresh", new RefreshTokenRequestDto(rotated.RefreshToken))).StatusCode == HttpStatusCode.Unauthorized, "Force logout revokes refresh tokens");
     Check((await adminClient.GetAsync("api/v1/admin/audit/export")).IsSuccessStatusCode, "Administrator can export audit CSV");
+    // Read receipts: history is side-effect free and one call marks everything up to a message.
+    await using var adminHub = Hub(admin.AccessToken);
+    var receipts = new List<ReadReceiptDto>(); adminHub.On<ReadReceiptDto>(nameof(IClientHub.ReadReceiptAsync), r => { lock (receipts) receipts.Add(r); });
+    await adminHub.StartAsync();
+    await adminHub.InvokeAsync(nameof(IServerHub.SendMessageAsync), new SendMessageDto(otherDm.Id, "first unread", IFB.Shared.Enums.MessageType.Text, null, null));
+    using var adminFileContent = new MultipartFormDataContent(); adminFileContent.Add(new StringContent(otherDm.Id), "conversationId"); adminFileContent.Add(new ByteArrayContent("to be deleted"u8.ToArray()), "file", "remove-me.txt");
+    using var adminUpload = await adminClient.PostAsync("api/v1/files/upload", adminFileContent); adminUpload.EnsureSuccessStatusCode();
+    var removableFileId = (await adminUpload.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString();
+    await adminHub.InvokeAsync(nameof(IServerHub.SendMessageAsync), new SendMessageDto(otherDm.Id, "remove-me.txt", IFB.Shared.Enums.MessageType.File, null, removableFileId));
+    var eveHistory = await eveClient.GetFromJsonAsync<JsonElement>($"api/v1/conversations/{otherDm.Id}/messages");
+    var newestId = eveHistory.GetProperty("messages").EnumerateArray().Last().GetProperty("id").GetString()!;
+    var eveUnread = (await eveClient.GetFromJsonAsync<List<ConversationDto>>("api/v1/conversations"))!.First(c => c.Id == otherDm.Id).UnreadCount;
+    Check(eveUnread == 2, "Loading history does not mark messages read");
+    Check((await Post(eveClient, $"api/v1/conversations/{otherDm.Id}/messages/read", new MarkReadDto(newestId))).IsSuccessStatusCode &&
+        (await eveClient.GetFromJsonAsync<List<ConversationDto>>("api/v1/conversations"))!.First(c => c.Id == otherDm.Id).UnreadCount == 0, "One read call marks all earlier incoming messages read");
+    await Task.Delay(300);
+    lock (receipts) Check(receipts.Count == 1 && receipts[0].MessageId == newestId, "Bulk read sends a single read-through receipt");
+    Check((await adminClient.DeleteAsync($"api/v1/conversations/{otherDm.Id}/messages/{newestId}")).IsSuccessStatusCode &&
+        (await eveClient.GetAsync($"api/v1/files/{removableFileId}")).StatusCode == HttpStatusCode.NotFound, "Deleting a message removes its unshared attachment");
+    // Sign-out revokes the refresh token even without a valid access token.
+    var eveSecond = await Login("eve");
+    Check((await Post(anonymous, "api/v1/auth/logout", new RefreshTokenRequestDto(eveSecond.RefreshToken))).IsSuccessStatusCode &&
+        (await Post(anonymous, "api/v1/auth/refresh", new RefreshTokenRequestDto(eveSecond.RefreshToken))).StatusCode == HttpStatusCode.Unauthorized, "Logout revokes the refresh token server-side");
+    // Identity fields are administrator-managed.
+    using var renameSelf = await eveClient.PatchAsJsonAsync("api/v1/users/me/profile", new { displayName = "Administrator" });
+    Check(renameSelf.StatusCode == HttpStatusCode.Forbidden, "Employees cannot change their own display name");
+    using var titleSelf = await eveClient.PatchAsJsonAsync("api/v1/users/me/profile", new { title = "Line supervisor" });
+    Check(titleSelf.IsSuccessStatusCode, "Employees can update their own job title");
+    using var adminRename = await adminClient.PatchAsJsonAsync($"api/v1/admin/users/{eve.User.Id}", new { role = 0, isActive = true, displayName = "Eve Example", title = "Line supervisor" });
+    var eveMe = await eveClient.GetFromJsonAsync<UserDto>("api/v1/users/me");
+    Check(adminRename.IsSuccessStatusCode && eveMe?.DisplayName == "Eve Example", "Administrator profile edits apply without ending the user's session");
+    Check((await Post(adminClient, "api/v1/users", new { username = "bad name!", password, displayName = "Bad", email = "bad@test.local", role = 0 })).StatusCode == HttpStatusCode.BadRequest, "Local usernames are validated like sign-in names");
     var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["LanSecurity:RejectOutsideRanges"] = "true" }).Build();
     var lan = new LanGuardMiddleware(_ => Task.CompletedTask, config, NullLogger<LanGuardMiddleware>.Instance);
     var context = new DefaultHttpContext(); context.Connection.RemoteIpAddress = IPAddress.Parse("203.0.113.10"); context.Response.Body = new MemoryStream(); await lan.InvokeAsync(context);

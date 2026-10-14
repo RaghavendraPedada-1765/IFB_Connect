@@ -147,3 +147,52 @@ public sealed class AuditService : IAuditService
         }
     }
 }
+
+// ── Shared message maintenance ────────────────────────────────────────────────
+
+public static class MessageMaintenance
+{
+    /// <summary>
+    /// Records read receipts for every incoming message in the conversation up to and including
+    /// <paramref name="target"/>. One call replaces one hub/REST call per message.
+    /// </summary>
+    public static async Task<int> MarkReadThroughAsync(AppDbContext db, Message target, string userId,
+        CancellationToken ct = default)
+    {
+        var unreadIds = await db.Messages
+            .Where(m => m.ConversationId == target.ConversationId && m.SentAt <= target.SentAt &&
+                        m.SenderId != userId && !m.ReadReceipts.Any(r => r.UserId == userId))
+            .Select(m => m.Id)
+            .ToListAsync(ct);
+        if (unreadIds.Count == 0) return 0;
+        var now = DateTime.UtcNow;
+        db.MessageReadReceipts.AddRange(unreadIds.Select(id => new MessageReadReceipt
+            { MessageId = id, UserId = userId, ReadAt = now }));
+        await db.SaveChangesAsync(ct);
+        return unreadIds.Count;
+    }
+
+    /// <summary>
+    /// Detaches a deleted message's attachment. The attachment record is removed when no other
+    /// live message uses it; the returned path should be deleted after SaveChanges succeeds.
+    /// </summary>
+    public static async Task<string?> DetachAttachmentAsync(AppDbContext db, Message message)
+    {
+        if (message.FileId == null) return null;
+        var fileId = message.FileId;
+        message.FileId = null;
+        if (await db.Messages.AnyAsync(m => m.FileId == fileId && m.Id != message.Id && !m.IsDeleted)) return null;
+        var file = await db.FileAttachments.FindAsync(fileId);
+        if (file == null) return null;
+        db.FileAttachments.Remove(file);
+        return file.StoragePath;
+    }
+
+    public static void DeleteStoredFile(string? path, ILogger logger)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { logger.LogWarning(ex, "Could not delete attachment file for a deleted message"); }
+    }
+}

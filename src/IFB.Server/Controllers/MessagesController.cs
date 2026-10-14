@@ -60,6 +60,7 @@ public sealed class MessagesController : ControllerBase
             .Include(m => m.Sender)
             .Include(m => m.Reactions)
             .Include(m => m.ReadReceipts)
+            .AsSplitQuery() // two collection includes; a single query would multiply rows
             .AsNoTracking()
             .ToListAsync();
 
@@ -70,25 +71,8 @@ public sealed class MessagesController : ControllerBase
             .Select(m => ToMessageDto(m, userId))
             .ToList();
 
-        // Mark as read up to the newest message in this batch
-        var newest = messages.MaxBy(m => m.SentAt);
-        if (newest != null)
-        {
-            var unreadIds = await _db.Messages.Where(m => m.ConversationId == conversationId && m.SentAt <= newest.SentAt &&
-                m.SenderId != userId && !m.ReadReceipts.Any(r => r.UserId == userId)).Select(m => m.Id).ToListAsync();
-            foreach (var messageId in unreadIds)
-            {
-                _db.MessageReadReceipts.Add(new Models.MessageReadReceipt
-                {
-                    MessageId = messageId,
-                    UserId = userId,
-                    ReadAt = DateTime.UtcNow
-                });
-            }
-            await _db.SaveChangesAsync();
-            foreach (var messageId in unreadIds)
-                await _hub.Clients.Group(conversationId).ReadReceiptAsync(new ReadReceiptDto(messageId, conversationId, userId, DateTime.UtcNow));
-        }
+        // Reading history has no side effects. The client marks messages read (one call for the
+        // newest visible message) only while the conversation is actually on screen.
 
         return Ok(new { messages = dtos, hasMore = dtos.Count == limit });
     }
@@ -99,22 +83,11 @@ public sealed class MessagesController : ControllerBase
     {
         var userId = CurrentUserId;
         if (!await IsMemberAsync(conversationId, userId)) return Forbid();
-        if (!await _db.Messages.AnyAsync(m => m.Id == dto.MessageId && m.ConversationId == conversationId)) return NotFound();
+        var target = await _db.Messages.FirstOrDefaultAsync(m => m.Id == dto.MessageId && m.ConversationId == conversationId);
+        if (target == null) return NotFound();
 
-        // Upsert read receipt
-        var receipt = await _db.MessageReadReceipts
-            .FirstOrDefaultAsync(r => r.MessageId == dto.MessageId && r.UserId == userId);
-
-        if (receipt == null)
-        {
-            _db.MessageReadReceipts.Add(new Models.MessageReadReceipt
-            {
-                MessageId = dto.MessageId,
-                UserId = userId,
-                ReadAt = DateTime.UtcNow
-            });
-            await _db.SaveChangesAsync();
-        }
+        // Marks this message and every earlier incoming message read in one operation.
+        if (await IFB.Server.Services.MessageMaintenance.MarkReadThroughAsync(_db, target, userId) == 0) return NoContent();
 
         await _hub.Clients.Group(conversationId).ReadReceiptAsync(new ReadReceiptDto(dto.MessageId, conversationId, userId, DateTime.UtcNow));
         return NoContent();
@@ -140,7 +113,7 @@ public sealed class MessagesController : ControllerBase
         if ((DateTime.UtcNow - message.SentAt).TotalMinutes > 15)
             return UnprocessableEntity(new { error = "Message can only be edited within 15 minutes." });
 
-        message.Content = dto.NewContent.Trim();
+        message.Content = IFB.Server.Services.MessageService.SanitizeContent(dto.NewContent);
         message.IsEdited = true;
         message.EditedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -170,7 +143,9 @@ public sealed class MessagesController : ControllerBase
         message.IsDeleted = true;
         message.Content = "[This message was deleted]";
         message.EditedAt = DateTime.UtcNow;
+        var orphanedFile = await IFB.Server.Services.MessageMaintenance.DetachAttachmentAsync(_db, message);
         await _db.SaveChangesAsync();
+        IFB.Server.Services.MessageMaintenance.DeleteStoredFile(orphanedFile, _logger);
         await _hub.Clients.Group(conversationId).MessageDeletedAsync(new MessageDeletedDto(id, conversationId));
 
         return NoContent();

@@ -18,20 +18,16 @@ public static class LanBinding
             options.Limits.MaxRequestBodySize = config.GetValue<long>("FileStorage:MaxFileSizeBytes", 52_428_800) + 1_048_576;
             options.Listen(address, config.GetValue("Server:Port", 5001), listen =>
             {
-                if (!string.IsNullOrWhiteSpace(config["Server:CertificatePath"])) listen.UseHttps(config["Server:CertificatePath"]!, config["Server:CertificatePassword"]);
+                var certificatePath = config["Server:CertificatePath"];
+                if (!string.IsNullOrWhiteSpace(certificatePath)) listen.UseHttps(certificatePath, config["Server:CertificatePassword"]);
                 else if (builder.Environment.IsDevelopment()) listen.UseHttps();
                 else
                 {
-                    var path = config["Server:CertificatePath"];
-                    if (!string.IsNullOrWhiteSpace(path)) listen.UseHttps(path, config["Server:CertificatePassword"]);
-                    else
-                    {
-                        using var store = new X509Store(StoreName.My, StoreLocation.LocalMachine); store.Open(OpenFlags.ReadOnly);
-                        var subject = config["Server:CertificateSubject"] ?? "ifbserver.ifb.local";
-                        var cert = store.Certificates.Find(X509FindType.FindBySubjectName, subject, true).Cast<X509Certificate2>()
-                            .FirstOrDefault(c => c.HasPrivateKey) ?? throw new InvalidOperationException("Install an internal CA server certificate with a private key, or configure Server:CertificatePath.");
-                        listen.UseHttps(cert);
-                    }
+                    using var store = new X509Store(StoreName.My, StoreLocation.LocalMachine); store.Open(OpenFlags.ReadOnly);
+                    var subject = config["Server:CertificateSubject"] ?? "ifbserver.ifb.local";
+                    var cert = store.Certificates.Find(X509FindType.FindBySubjectName, subject, true).Cast<X509Certificate2>()
+                        .FirstOrDefault(c => c.HasPrivateKey) ?? throw new InvalidOperationException("Install an internal CA server certificate with a private key, or configure Server:CertificatePath.");
+                    listen.UseHttps(cert);
                 }
             });
         });

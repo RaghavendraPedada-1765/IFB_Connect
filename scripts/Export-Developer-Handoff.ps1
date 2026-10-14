@@ -3,7 +3,11 @@ $projectRoot = [IO.Path]::GetFullPath((Split-Path $PSScriptRoot -Parent))
 $handoffName = 'IFBConnect-Source-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,8)
 $stageRoot = Join-Path $projectRoot ('artifacts/handoff/' + $handoffName)
 New-Item -ItemType Directory -Path $stageRoot | Out-Null
-$blockedDirectories = @('bin','obj','.work','artifacts','certs','data','logs','.git','.vs','node_modules')
+# Directory names are compared case-insensitively on Windows, so never block a bare 'data' here:
+# it would silently drop src/IFB.Server/Data (DbContext + migrations) from the handoff.
+$blockedDirectories = @('bin','obj','.work','artifacts','certs','storage','logs','.git','.vs','node_modules')
+# Runtime-only folders blocked by their exact relative path.
+$blockedPaths = @('src/IFB.Server/Data/files')
 $allowedExtensions = @('.cs','.csproj','.sln','.xaml','.manifest','.json','.md','.ps1','.png','.jpg','.jpeg','.svg','.txt','.props','.targets','.resx','.config','.xml')
 $manifest = [Collections.Generic.List[object]]::new()
 function Copy-HandoffFile([IO.FileInfo]$file) {
@@ -19,7 +23,8 @@ function Copy-HandoffDirectory([string]$directory) {
     foreach ($item in Get-ChildItem -LiteralPath $directory -Force) {
         if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw "Linked paths are not supported: $($item.Name)" }
         if ($item.PSIsContainer) {
-            if ($item.Name -notin $blockedDirectories) { Copy-HandoffDirectory $item.FullName }
+            $relativeDirectory = [IO.Path]::GetRelativePath($projectRoot, $item.FullName).Replace('\','/')
+            if ($item.Name -notin $blockedDirectories -and $relativeDirectory -notin $blockedPaths) { Copy-HandoffDirectory $item.FullName }
         } elseif ($item.Extension.ToLowerInvariant() -in $allowedExtensions -and $item.Name -notmatch '(?i)(^\.env|credentials|secrets|accounts\.json|startup\.log)') {
             Copy-HandoffFile $item
         }
@@ -27,6 +32,10 @@ function Copy-HandoffDirectory([string]$directory) {
 }
 foreach ($rootFile in @('IFBConnect.sln','README.md','.gitignore')) { Copy-HandoffFile (Get-Item -LiteralPath (Join-Path $projectRoot $rootFile) -Force) }
 foreach ($directory in @('src','tests','scripts','installer','docs','assets')) { Copy-HandoffDirectory (Join-Path $projectRoot $directory) }
+# The server cannot build without its DbContext and migrations; fail loudly if they were filtered out.
+foreach ($required in @('src/IFB.Server/Data/AppDbContext.cs','src/IFB.Server/Data/Migrations','src/IFB.Server/Data/SqlServerMigrations')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $stageRoot $required))) { throw "Handoff is missing required source: $required" }
+}
 # Reject recognizable private keys or saved tokens instead of packaging them.
 foreach ($file in Get-ChildItem -LiteralPath $stageRoot -File -Recurse | Where-Object { $_.Extension -in '.cs','.json','.ps1','.md','.txt','.xml','.config' }) {
     if (Select-String -LiteralPath $file.FullName -Pattern '-----BEGIN (?:RSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----','"(?:accessToken|refreshToken)"\s*:\s*"[A-Za-z0-9_+./=-]{40,}"' -Quiet) {

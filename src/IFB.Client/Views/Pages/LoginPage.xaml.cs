@@ -17,6 +17,13 @@ public sealed partial class LoginPage : Page
         InitializeComponent();
         _vm = App.Services.GetRequiredService<LoginViewModel>();
         DataContext = _vm;
+        SizeChanged += (_, e) =>
+        {
+            var compact = e.NewSize.Width < 900;
+            BrandPanel.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            BrandColumn.Width = compact ? new GridLength(0) : new GridLength(.9, GridUnitType.Star);
+        };
+        IFB.Client.Services.FluidMotion.Attach(LoginButton);
 
         // Keep PasswordBox in sync — PasswordBox.Password can't be data-bound
         _vm.PropertyChanged += (_, e) =>
@@ -77,7 +84,7 @@ public sealed partial class LoginPage : Page
     private async void ManualConfig_Click(object sender, RoutedEventArgs e)
     {
         var input = new TextBox { Header = "Company server address", Text = _vm.ServerAddress };
-        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Connect to server", Content = input,
+        var dialog = new ContentDialog { RequestedTheme = ActualTheme, XamlRoot = XamlRoot, Title = "Connect to server", Content = input,
             PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
         if (await dialog.ShowAsync() == ContentDialogResult.Primary) _vm.ServerAddress = input.Text;
     }
@@ -94,21 +101,7 @@ public sealed partial class LoginPage : Page
         catch (Exception ex) { await Ui.Error(this, ex); }
     }
 
-    private void PlayShakeAnimation()
-    {
-        var shake = new DoubleAnimationUsingKeyFrames();
-        Storyboard.SetTarget(shake, ErrorBorder);
-        Storyboard.SetTargetProperty(shake, "(UIElement.RenderTransform).(TranslateTransform.X)");
-        shake.KeyFrames.Add(new EasingDoubleKeyFrame { KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(0)), Value = 0 });
-        shake.KeyFrames.Add(new EasingDoubleKeyFrame { KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(50)), Value = -8 });
-        shake.KeyFrames.Add(new EasingDoubleKeyFrame { KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(100)), Value = 8 });
-        shake.KeyFrames.Add(new EasingDoubleKeyFrame { KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(150)), Value = -6 });
-        shake.KeyFrames.Add(new EasingDoubleKeyFrame { KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(200)), Value = 6 });
-        shake.KeyFrames.Add(new EasingDoubleKeyFrame { KeyTime = KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(250)), Value = 0 });
-
-        ErrorBorder.RenderTransform = new Microsoft.UI.Xaml.Media.TranslateTransform();
-        var sb = new Storyboard();
-        sb.Children.Add(shake);
-        sb.Begin();
-    }
+    private void PlayShakeAnimation() { /* Keep inline errors steady and readable. */ }
 }
+
+

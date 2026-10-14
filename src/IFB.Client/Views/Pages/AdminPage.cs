@@ -15,11 +15,11 @@ public sealed class AdminPage : Page
     private readonly ClientRequests _api = App.Services.GetRequiredService<ClientRequests>();
     private readonly ComboBox _section = new() { ItemsSource = new[] { "Users", "Groups and channels", "Announcements", "Audit log", "Connected clients" }, SelectedIndex = 0, MinWidth = 180 };
     private readonly ListView _list = new();
-    private readonly StackPanel _actions = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
+    private readonly StackPanel _actions = new() { Orientation = Orientation.Horizontal, Spacing = 10 };
     public AdminPage()
     {
         if (App.Services.GetRequiredService<IClientAuthService>().CurrentUser?.Role != UserRole.Admin) { Content = Ui.Title("Administrator access required"); return; }
-        Content = Ui.Layout("Administration", Ui.Row(_section, Ui.Button("Refresh", LoadAsync), _actions), _list);
+        Content = Ui.Layout("Administration", Ui.Row(_section, Ui.Button("Refresh", LoadAsync), _actions), _list, "Manage your people, shared spaces and company announcements.");
         _section.SelectionChanged += async (_, _) => { try { await LoadAsync(); } catch (Exception ex) { await Ui.Error(this, ex); } };
         Loaded += async (_, _) => { try { await LoadAsync(); } catch (Exception ex) { await Ui.Error(this, ex); } };
     }
@@ -56,7 +56,7 @@ public sealed class AdminPage : Page
     }
     private async Task<bool> Form(string title, params UIElement[] controls)
     { var p = new StackPanel { Spacing = 12 }; foreach (var control in controls) p.Children.Add(control);
-        return await new ContentDialog { XamlRoot = XamlRoot, Title = title, Content = new ScrollViewer { Content = p }, PrimaryButtonText = "Save", CloseButtonText = "Cancel" }.ShowAsync() == ContentDialogResult.Primary; }
+        return await new ContentDialog { RequestedTheme = ActualTheme, XamlRoot = XamlRoot, Title = title, Content = new ScrollViewer { Content = p }, PrimaryButtonText = "Save", CloseButtonText = "Cancel" }.ShowAsync() == ContentDialogResult.Primary; }
     private async Task CreateUserAsync()
     {
         var username = new TextBox { Header = "Username" }; var name = new TextBox { Header = "Display name" }; var email = new TextBox { Header = "Email" };
@@ -67,12 +67,13 @@ public sealed class AdminPage : Page
     private async Task EditUserAsync()
     {
         if (_list.SelectedItem is not AdminUser u) return;
+        var displayName = new TextBox { Header = "Display name", Text = u.DisplayName, MaxLength = 128 };
         var role = new ComboBox { Header = "Role", ItemsSource = Enum.GetValues<UserRole>(), SelectedItem = u.Role };
         var active = new ToggleSwitch { Header = "Account enabled", IsOn = u.IsActive };
         var department = new TextBox { Header = "Department", Text = u.Department ?? "" }; var title = new TextBox { Header = "Job title", Text = u.Title ?? "" };
         var password = new PasswordBox { Header = "New local password (leave blank to keep current)" };
-        if (await Form("Edit " + u.DisplayName, role, active, department, title, password))
-        { await _api.SendAsync(HttpMethod.Patch, $"api/v1/admin/users/{u.Id}", new { role = (UserRole)role.SelectedItem, isActive = active.IsOn, department = department.Text, title = title.Text, newPassword = string.IsNullOrEmpty(password.Password) ? null : password.Password }); await LoadAsync(); }
+        if (await Form("Edit " + u.DisplayName, displayName, role, active, department, title, password))
+        { await _api.SendAsync(HttpMethod.Patch, $"api/v1/admin/users/{u.Id}", new { displayName = displayName.Text, role = (UserRole)role.SelectedItem, isActive = active.IsOn, department = department.Text, title = title.Text, newPassword = string.IsNullOrEmpty(password.Password) ? null : password.Password }); await LoadAsync(); }
     }
     private async Task CreateChannelAsync()
     { var name = new TextBox { Header = "Channel name" }; if (await Form("Create department channel", name)) { await _api.SendAsync(HttpMethod.Post, "api/v1/admin/channels", new { name = name.Text, retentionDays = 90 }); await LoadAsync(); } }
@@ -84,3 +85,4 @@ public sealed class AdminPage : Page
     { var title = new TextBox { Header = "Title" }; var content = new TextBox { Header = "Message", AcceptsReturn = true, Height = 140 }; var priority = new ComboBox { Header = "Priority", ItemsSource = Enum.GetValues<AnnouncementPriority>(), SelectedIndex = 0 };
         if (await Form("Broadcast announcement", title, content, priority)) { await _api.SendAsync(HttpMethod.Post, "api/v1/announcements", new { title = title.Text, content = content.Text, priority = (AnnouncementPriority)priority.SelectedItem }); await LoadAsync(); } }
 }
+

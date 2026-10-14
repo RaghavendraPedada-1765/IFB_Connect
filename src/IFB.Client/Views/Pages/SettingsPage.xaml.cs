@@ -12,26 +12,53 @@ public sealed partial class SettingsPage : Page
         var prefs = App.Services.GetRequiredService<ClientPreferences>();
         var themeService = App.Services.GetRequiredService<IThemeService>();
         var notifications = App.Services.GetRequiredService<INotificationService>();
-        var panel = new StackPanel { Padding = new Thickness(32), Spacing = 20, MaxWidth = 650, HorizontalAlignment = HorizontalAlignment.Left };
-        panel.Children.Add(Ui.Title("Settings"));
-        var themes = new ComboBox { Header = "Appearance", ItemsSource = new[] { "Auto", "Dark", "Light" }, SelectedItem = prefs.Theme, MinWidth = 200 };
-        themes.SelectionChanged += (_, _) => { prefs.Theme = themes.SelectedItem?.ToString() ?? "Auto"; themeService.SetTheme(prefs.Theme); prefs.Save(); }; panel.Children.Add(themes);
-        void Toggle(string label, bool value, Action<bool> change)
-        { var toggle = new ToggleSwitch { Header = label, IsOn = value }; toggle.Toggled += (_, _) => { change(toggle.IsOn); prefs.Save(); }; panel.Children.Add(toggle); }
-        Toggle("Performance mode (solid surfaces)", prefs.PerformanceMode, v => { prefs.PerformanceMode = v; themeService.SetPerformanceMode(v); });
-        Toggle("Desktop notifications", prefs.Notifications, v => prefs.Notifications = v);
-        Toggle("Notification sounds", prefs.Sounds, v => prefs.Sounds = v);
-        Toggle("Do not disturb", prefs.DoNotDisturb, v => { prefs.DoNotDisturb = v; notifications.SetDoNotDisturb(v); });
-        Toggle("Keep running in the system tray when closed", prefs.CloseToTray, v => prefs.CloseToTray = v);
-        var presence = new ComboBox { Header = "Presence", ItemsSource = Enum.GetValues<PresenceStatus>().Where(s => s != PresenceStatus.Offline).ToArray(), SelectedIndex = 0 };
-        presence.SelectionChanged += async (_, _) => { try { var status = (PresenceStatus)presence.SelectedItem;
-            notifications.SetDoNotDisturb(status == PresenceStatus.DoNotDisturb); await App.Services.GetRequiredService<IHubConnectionService>().UpdatePresenceAsync(new IFB.Shared.Contracts.UpdatePresenceDto(status)); } catch (Exception ex) { await Ui.Error(this, ex); } }; panel.Children.Add(presence);
-        var accent = new TextBox { Header = "Personal accent (#RRGGBB)", Text = prefs.Accent ?? "#0055A5", MaxLength = 7 };
-        panel.Children.Add(Ui.Row(accent, Ui.Button("Apply accent", () => { ThemeTokens.SetAccent(accent.Text); prefs.Accent = accent.Text; prefs.Save(); return Task.CompletedTask; })));
-        panel.Children.Add(new TextBlock { Text = "Server: " + App.Services.GetRequiredService<ServerEndpoint>().Address, TextWrapping = TextWrapping.Wrap });
-        if (App.Services.GetRequiredService<IClientAuthService>().CurrentUser?.Role == UserRole.Admin)
-            panel.Children.Add(Ui.Button("Administration", () => { App.Current.MainWindow!.OpenAdmin(); return Task.CompletedTask; }));
-        panel.Children.Add(Ui.Button("Sign out", async () => { await App.Services.GetRequiredService<IClientAuthService>().LogoutAsync(); await App.Services.GetRequiredService<IHubConnectionService>().DisconnectAsync(); App.Current.MainWindow!.NavigateToLogin(); }));
-        Content = new ScrollViewer { Content = panel };
+        var panel = new StackPanel { Padding = new Thickness(32), Spacing = 26, MaxWidth = 850, HorizontalAlignment = HorizontalAlignment.Stretch };
+        panel.Children.Add(Ui.Title("Make it yours."));
+        panel.Children.Add(Ui.Caption("A comfortable workspace, with just the right amount of attention."));
+        var themes = new ComboBox { ItemsSource = new[] { "Auto", "Light", "Dark" }, SelectedItem = prefs.Theme, MinWidth = 132 };
+        themes.SelectionChanged += (_, _) => { prefs.Theme = themes.SelectedItem?.ToString() ?? "Auto"; themeService.SetTheme(prefs.Theme); prefs.Save(); };
+        FrameworkElement Toggle(string title, string description, bool value, Action<bool> change)
+        {
+            var toggle = new ToggleSwitch { IsOn = value, OffContent = "", OnContent = "", MinWidth = 48 };
+            toggle.Toggled += (_, _) => { change(toggle.IsOn); prefs.Save(); };
+            return Ui.SettingRow(title, description, toggle);
+        }
+        var accent = new TextBox { Text = prefs.Accent ?? "#0055A5", MaxLength = 7, Width = 110, PlaceholderText = "#RRGGBB" };
+        panel.Children.Add(Ui.Section("Appearance",
+            Ui.SettingRow("Theme", "Follow Windows, or choose a light or dark workspace.", themes),
+            Toggle("Solid surfaces", "Reduce transparency and motion for a quieter, faster experience.", prefs.PerformanceMode, v => { prefs.PerformanceMode = v; themeService.SetPerformanceMode(v); }),
+            Ui.SettingRow("Accent colour", "Add a personal touch to your workspace.", Ui.Row(accent, Ui.Button("Apply", () => { ThemeTokens.SetAccent(accent.Text); prefs.Accent = accent.Text; prefs.Save(); return Task.CompletedTask; })))));
+        panel.Children.Add(Ui.Section("Notifications",
+            Toggle("Desktop notifications", "See incoming messages when you're working elsewhere.", prefs.Notifications, v => prefs.Notifications = v),
+            Toggle("Message sounds", "A subtle sound when a message arrives.", prefs.Sounds, v => prefs.Sounds = v),
+            Toggle("Do not disturb", "Keep your focus. Silence incoming alerts.", prefs.DoNotDisturb, v => { prefs.DoNotDisturb = v; notifications.SetDoNotDisturb(v); })));
+        var presence = new ComboBox { ItemsSource = Enum.GetValues<PresenceStatus>().Where(s => s != PresenceStatus.Offline).ToArray(),
+            SelectedItem = App.Services.GetRequiredService<IClientAuthService>().CurrentUser?.Presence ?? PresenceStatus.Online, MinWidth = 132 };
+        presence.SelectionChanged += async (_, _) => {
+            try {
+                var status = (PresenceStatus)presence.SelectedItem;
+                notifications.SetDoNotDisturb(prefs.DoNotDisturb || status == PresenceStatus.DoNotDisturb);
+                await App.Services.GetRequiredService<IHubConnectionService>().UpdatePresenceAsync(new IFB.Shared.Contracts.UpdatePresenceDto(status));
+            } catch (Exception ex) { await Ui.Error(this, ex); }
+        };
+        panel.Children.Add(Ui.Section("Your workspace",
+            Ui.SettingRow("Availability", "Let your colleagues know when you're available.", presence),
+            Toggle("Keep running when closed", "Receive messages while IFB Connect stays in the system tray.", prefs.CloseToTray, v => prefs.CloseToTray = v),
+            Ui.SettingRow("Connected server", "Your company's messaging workspace.", Ui.Caption(App.Services.GetRequiredService<ServerEndpoint>().Address.ToString()))));
+        var account = new StackPanel { Spacing = 14, Padding = new Thickness(12) };
+        var user = App.Services.GetRequiredService<IClientAuthService>().CurrentUser;
+        account.Children.Add(new TextBlock { Text = user?.DisplayName ?? "IFB Connect", Style = (Style)Application.Current.Resources["BodyStrongStyle"] });
+        account.Children.Add(Ui.Caption("IFB Connect · Internal company communications"));
+        if (user?.Role == UserRole.Admin)
+            account.Children.Add(Ui.Button("Open administration", () => { App.Current.MainWindow!.OpenAdmin(); return Task.CompletedTask; }));
+        account.Children.Add(Ui.Button("Sign out", async () => {
+            await App.Services.GetRequiredService<IClientAuthService>().LogoutAsync();
+            await App.Services.GetRequiredService<IHubConnectionService>().DisconnectAsync();
+            App.Current.MainWindow!.NavigateToLogin();
+        }));
+        panel.Children.Add(Ui.Section("Account", account));
+        Content = new ScrollViewer { Content = panel, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     }
 }
+
+

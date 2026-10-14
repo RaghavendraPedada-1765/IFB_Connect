@@ -86,15 +86,19 @@ public sealed class ClientAuthService : IClientAuthService
 
     public async Task LogoutAsync()
     {
-        if (_refreshToken != null)
+        // The server revokes by refresh token alone, so this works even after the access token expired.
+        var refreshToken = _refreshToken ?? LoadRefreshToken();
+        if (refreshToken != null)
         {
             try
             {
-                var client = _httpFactory.CreateClient("IFBAuth");
-                await client.PostAsJsonAsync("api/v1/auth/logout",
-                    new RefreshTokenRequestDto(_refreshToken));
+                using var client = _httpFactory.CreateClient("IFBAuth");
+                using var response = await client.PostAsJsonAsync("api/v1/auth/logout",
+                    new RefreshTokenRequestDto(refreshToken));
+                if (!response.IsSuccessStatusCode)
+                    System.Diagnostics.Debug.WriteLine($"Server sign-out returned {(int)response.StatusCode}");
             }
-            catch { }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Server sign-out failed: " + ex.Message); }
         }
         _accessToken = null;
         _refreshToken = null;
@@ -244,10 +248,9 @@ public sealed class HubConnectionService : IHubConnectionService, IAsyncDisposab
                     return socket;
                 };
             })
-            .WithAutomaticReconnect(
-                Enumerable.Range(0, maxAttempts)
-                    .Select(_ => TimeSpan.FromMilliseconds(intervalMs))
-                    .ToArray())
+            // Quick retries first, then keep trying every 30 seconds so a longer network or
+            // server outage recovers on its own instead of needing a manual reconnect.
+            .WithAutomaticReconnect(new PersistentRetryPolicy(maxAttempts, TimeSpan.FromMilliseconds(intervalMs)))
             .Build();
 
         // Lifecycle
@@ -348,6 +351,14 @@ public sealed class HubConnectionService : IHubConnectionService, IAsyncDisposab
     }
 
     public async ValueTask DisposeAsync() => await DisconnectAsync();
+}
+
+/// <summary>Retries at the configured interval, then every 30 seconds indefinitely.</summary>
+internal sealed class PersistentRetryPolicy(int quickAttempts, TimeSpan quickInterval) : IRetryPolicy
+{
+    private static readonly TimeSpan SlowInterval = TimeSpan.FromSeconds(30);
+    public TimeSpan? NextRetryDelay(RetryContext retryContext) =>
+        retryContext.PreviousRetryCount < quickAttempts ? quickInterval : SlowInterval;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -268,6 +268,7 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"LoadConversations failed: {ex.Message}");
+            throw;
         }
     }
 
@@ -372,7 +373,7 @@ public sealed partial class ChatViewModel : ObservableObject
         _hub.MessageDeleted += OnMessageDeleted;
         _hub.ReactionUpdated += OnReactionUpdated;
         _hub.TypingReceived += OnTypingReceived;
-        _hub.ReadReceiptReceived += (_, receipt) => { var message = Messages.FirstOrDefault(m => m.Id == receipt.MessageId); if (message != null && message.IsFromCurrentUser && receipt.ReadByUserId != _auth.CurrentUser?.Id) message.ReadStatus = "Read"; };
+        _hub.ReadReceiptReceived += OnReadReceipt;
     }
 
     /// <summary>Called when switching to a conversation.</summary>
@@ -456,12 +457,21 @@ public sealed partial class ChatViewModel : ObservableObject
         await _hub.ToggleReactionAsync(new ToggleReactionDto(msgId, emoji));
     }
 
+    private DateTime _lastTypingSentUtc = DateTime.MinValue;
+    private string? _lastTypingConversationId;
+
     public async Task NotifyTypingAsync()
     {
         if (_conversationId == null) return;
 
-        // Send "is typing" and auto-cancel after 3 seconds
-        try { await _hub.SendTypingAsync(new TypingDto(_conversationId, true)); } catch { return; }
+        // Send "is typing" at most every 2.5 seconds instead of on every keystroke,
+        // and auto-cancel 3 seconds after the last keystroke.
+        var now = DateTime.UtcNow;
+        if (_lastTypingConversationId != _conversationId || now - _lastTypingSentUtc > TimeSpan.FromSeconds(2.5))
+        {
+            try { await _hub.SendTypingAsync(new TypingDto(_conversationId, true)); } catch { return; }
+            _lastTypingSentUtc = now; _lastTypingConversationId = _conversationId;
+        }
 
         _typingCts?.Cancel();
         _typingCts = new CancellationTokenSource();
@@ -470,7 +480,10 @@ public sealed partial class ChatViewModel : ObservableObject
         _ = Task.Delay(3000, token).ContinueWith(async _ =>
         {
             if (!token.IsCancellationRequested)
+            {
+                _lastTypingSentUtc = DateTime.MinValue; // the next keystroke announces typing again
                 try { await _hub.SendTypingAsync(new TypingDto(_conversationId!, false)); } catch { }
+            }
         }, TaskScheduler.Current);
     }
 
@@ -493,11 +506,13 @@ public sealed partial class ChatViewModel : ObservableObject
         if (_conversationId == null || App.Current.MainWindow?.IsConversationVisible(_conversationId) != true) return;
         try
         {
-            foreach (var message in Messages.Where(m => !m.IsFromCurrentUser && !_readMessageIds.Contains(m.Id)).ToArray())
+            // The server marks every earlier incoming message read with this one call, so only
+            // the newest incoming message needs to be sent.
+            var newest = Messages.LastOrDefault(m => !m.IsFromCurrentUser);
+            if (newest != null && _readMessageIds.Add(newest.Id))
             {
-                if (!_readMessageIds.Add(message.Id)) continue;
-                try { await _hub.MarkReadAsync(new MarkReadDto(message.Id)); }
-                catch { _readMessageIds.Remove(message.Id); throw; }
+                try { await _hub.MarkReadAsync(new MarkReadDto(newest.Id)); }
+                catch { _readMessageIds.Remove(newest.Id); throw; }
             }
             var main = App.Services.GetRequiredService<MainViewModel>();
             if (main.SelectedConversation?.Id == _conversationId)
@@ -507,6 +522,19 @@ public sealed partial class ChatViewModel : ObservableObject
             }
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Read receipt pending: " + ex.Message); }
+    }
+
+    /// <summary>A receipt means "read up to and including this message".</summary>
+    private void OnReadReceipt(object? sender, ReadReceiptDto receipt)
+    {
+        if (receipt.ConversationId != _conversationId || receipt.ReadByUserId == _auth.CurrentUser?.Id) return;
+        var target = Messages.FirstOrDefault(m => m.Id == receipt.MessageId);
+        if (target == null) return;
+        foreach (var message in Messages)
+        {
+            if (message.IsFromCurrentUser) message.ReadStatus = "Read";
+            if (ReferenceEquals(message, target)) break;
+        }
     }
 
     private void OnMessageEdited(object? sender, MessageEditedDto dto)

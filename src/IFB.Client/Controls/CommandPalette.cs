@@ -33,9 +33,9 @@ public sealed class CommandPalette : UserControl
     private void RefreshTheme()
     {
         var dark = ActualTheme == ElementTheme.Dark;
-        var tint = Services.ThemeTokens.Parse(dark ? "#182438" : "#F5F9FD");
-        _card.Background = new AcrylicBrush { TintColor = tint, TintOpacity = .82, FallbackColor = tint,
-            AlwaysUseFallback = App.Services.GetRequiredService<Services.IThemeService>().IsPerformanceMode };
+        var tint = Services.ThemeTokens.Parse(dark ? "#282A2F" : "#FFFFFF");
+        _card.Background = new AcrylicBrush { TintColor = tint, TintOpacity = .94, FallbackColor = tint,
+            AlwaysUseFallback = Services.ThemeTokens.SolidMaterials };
         _card.BorderBrush = new SolidColorBrush(Color.FromArgb(80, 135, 154, 175));
         _searchBox.Foreground = new SolidColorBrush(Services.ThemeTokens.Parse(dark ? "#F1F5F9" : "#172A40"));
         _resultsList.Foreground = _searchBox.Foreground;
@@ -54,15 +54,15 @@ public sealed class CommandPalette : UserControl
         // Glass card container
         _card = new Border
         {
-            Width = 480,
+            MaxWidth = 560,
             MaxHeight = 480,
-            CornerRadius = new CornerRadius(16),
+            CornerRadius = new CornerRadius(24),
             BorderThickness = new Thickness(1),
             BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
             Padding = new Thickness(0),
             VerticalAlignment = VerticalAlignment.Top,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 80, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(24, 90, 24, 24),
             RenderTransformOrigin = new Windows.Foundation.Point(0.5, 0),
             RenderTransform = new ScaleTransform { ScaleX = 1, ScaleY = 0.95 }
         };
@@ -76,7 +76,12 @@ public sealed class CommandPalette : UserControl
         };
 
         // Inner layout
-        var stack = new StackPanel();
+        var stack = new Grid();
+        stack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        stack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        stack.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        stack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        stack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         // Search input row
         var inputRow = new Grid { Padding = new Thickness(16, 12, 16, 12) };
@@ -105,6 +110,19 @@ public sealed class CommandPalette : UserControl
         };
         Grid.SetColumn(_searchBox, 1);
         _searchBox.TextChanged += OnSearchTextChanged;
+        _searchBox.KeyDown += async (_, e) =>
+        {
+            if (e.Key is Windows.System.VirtualKey.Down or Windows.System.VirtualKey.Up)
+            {
+                if (_resultsList.Items.Count > 0)
+                    _resultsList.SelectedIndex = Math.Clamp(_resultsList.SelectedIndex + (e.Key == Windows.System.VirtualKey.Down ? 1 : -1), 0, _resultsList.Items.Count - 1);
+                e.Handled = true;
+            }
+            else if (e.Key == Windows.System.VirtualKey.Enter && _resultsList.SelectedItem is CommandPaletteResult result)
+            {
+                e.Handled = true; await OpenResultAsync(result);
+            }
+        };
 
         inputRow.Children.Add(searchIcon);
         inputRow.Children.Add(_searchBox);
@@ -140,13 +158,17 @@ public sealed class CommandPalette : UserControl
         footer.Children.Add(CreateKbdHint("Esc", "Close"));
 
         stack.Children.Add(inputRow);
+        Grid.SetRow(separator, 1);
         stack.Children.Add(separator);
+        Grid.SetRow(_resultsList, 2);
         stack.Children.Add(_resultsList);
         stack.Children.Add(new Border
         {
             Height = 1,
             Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255))
         });
+        Grid.SetRow((FrameworkElement)stack.Children[3], 3);
+        Grid.SetRow(footer, 4);
         stack.Children.Add(footer);
 
         _card.Child = stack;
@@ -166,42 +188,35 @@ public sealed class CommandPalette : UserControl
         else Show();
     }
 
+    private Storyboard? _transition;
+    private int _transitionRevision;
+    private Control? _previousFocus;
     public void Show(CommandPaletteMode mode = CommandPaletteMode.Search)
     {
         RefreshTheme();
+        _previousFocus ??= Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(XamlRoot) as Control;
+        _transitionRevision++;
+        var currentOpacity = Visibility == Visibility.Visible ? _card.Opacity : 0;
+        _transition?.Stop();
+        _card.Opacity = currentOpacity;
+        _card.RenderTransform = new ScaleTransform();
         _isVisible = true;
         Visibility = Visibility.Visible;
         IsHitTestVisible = true;
-        if (!Services.ThemeTokens.AnimationsEnabled)
-        {
-            _card.Opacity = 1;
-            _card.RenderTransform = new ScaleTransform();
-            _searchBox.Focus(FocusState.Programmatic); LoadDefaultResults(); return;
-        }
-
-        // Animate card in
-        var fadeIn = new DoubleAnimation { From = 0, To = 1, Duration = new Duration(TimeSpan.FromMilliseconds(200)) };
-        var slideIn = new DoubleAnimation
-        {
-            From = 0.92, To = 1,
-            Duration = new Duration(TimeSpan.FromMilliseconds(220)),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        var sb = new Storyboard();
-        Storyboard.SetTarget(fadeIn, _card);
-        Storyboard.SetTargetProperty(fadeIn, "Opacity");
-        Storyboard.SetTarget(slideIn, _card);
-        Storyboard.SetTargetProperty(slideIn, "(UIElement.RenderTransform).(ScaleTransform.ScaleY)");
-        sb.Children.Add(fadeIn);
-        sb.Children.Add(slideIn);
-        sb.Begin();
-
-        _card.Opacity = 0;
+        AnimateOpacity(1, null);
         _searchBox.Focus(FocusState.Programmatic);
         LoadDefaultResults();
     }
-
+    private void AnimateOpacity(double target, Action? completed)
+    {
+        if (!Services.ThemeTokens.AnimationsEnabled) { _card.Opacity = target; completed?.Invoke(); return; }
+        var revision = _transitionRevision;
+        var animation = new DoubleAnimation { To = target, Duration = new Duration(TimeSpan.FromMilliseconds(140)) };
+        Storyboard.SetTarget(animation, _card); Storyboard.SetTargetProperty(animation, "Opacity");
+        _transition = new Storyboard(); _transition.Children.Add(animation);
+        _transition.Completed += (_, _) => { if (revision == _transitionRevision) completed?.Invoke(); };
+        _transition.Begin();
+    }
     public void ShowInMode(CommandPaletteMode mode)
     {
         _searchBox.PlaceholderText = mode switch
@@ -216,29 +231,16 @@ public sealed class CommandPalette : UserControl
     public void Dismiss()
     {
         _isVisible = false;
-        var fadeOut = new DoubleAnimation { To = 0, Duration = new Duration(TimeSpan.FromMilliseconds(150)) };
-        var slideOut = new DoubleAnimation
-        {
-            To = 0.95,
-            Duration = new Duration(TimeSpan.FromMilliseconds(150)),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-        };
-        var sb = new Storyboard();
-        Storyboard.SetTarget(fadeOut, _card);
-        Storyboard.SetTargetProperty(fadeOut, "Opacity");
-        Storyboard.SetTarget(slideOut, _card);
-        Storyboard.SetTargetProperty(slideOut, "(UIElement.RenderTransform).(ScaleTransform.ScaleY)");
-        sb.Children.Add(fadeOut);
-        sb.Children.Add(slideOut);
-        sb.Completed += (_, _) =>
-        {
-            Visibility = Visibility.Collapsed;
-            IsHitTestVisible = false;
+        _transitionRevision++;
+        var currentOpacity = _card.Opacity;
+        _transition?.Stop(); _card.Opacity = currentOpacity;
+        AnimateOpacity(0, () => {
+            if (_isVisible) return;
+            Visibility = Visibility.Collapsed; IsHitTestVisible = false;
             _searchBox.Text = string.Empty;
-        };
-        sb.Begin();
+            _previousFocus?.Focus(FocusState.Programmatic); _previousFocus = null;
+        });
     }
-
     private int _searchRevision;
     private async void OnSearchTextChanged(object sender, TextChangedEventArgs e)
     {
@@ -264,7 +266,11 @@ public sealed class CommandPalette : UserControl
     }
     private async void OnResultClick(object sender, ItemClickEventArgs e)
     {
-        if (e.ClickedItem is not CommandPaletteResult item || item.Id == "") return;
+        if (e.ClickedItem is CommandPaletteResult item) await OpenResultAsync(item);
+    }
+    private async Task OpenResultAsync(CommandPaletteResult item)
+    {
+        if (item.Id == "") return;
         Dismiss();
         try
         {
@@ -317,5 +323,6 @@ public sealed class CommandPalette : UserControl
 }
 
 internal record CommandPaletteResult(string Title, string Subtitle, string Id, bool IsPerson);
+
 
 

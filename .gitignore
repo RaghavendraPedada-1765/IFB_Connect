@@ -3,7 +3,10 @@
 .work/
 artifacts/
 **/certs/
-**/data/
+# Runtime attachment storage (never source). Do NOT use a bare 'data/' pattern:
+# Git on Windows ignores case, so it would also hide src/IFB.Server/Data (DbContext + migrations).
+**/storage/
+src/IFB.Server/Data/files/
 **/logs/
 *.db
 *.db-shm

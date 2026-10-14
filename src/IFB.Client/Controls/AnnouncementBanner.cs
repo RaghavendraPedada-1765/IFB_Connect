@@ -64,8 +64,8 @@ public sealed class AnnouncementBanner : UserControl
     {
         _card = new Border
         {
-            CornerRadius = new CornerRadius(12),
-            Padding = new Thickness(12, 10, 12, 10),
+            CornerRadius = new CornerRadius(18),
+            Padding = new Thickness(18, 16, 18, 16),
             BorderThickness = new Thickness(1)
         };
 
@@ -181,12 +181,9 @@ public sealed class AnnouncementBanner : UserControl
                     borderColor: Color.FromArgb(100, 245, 158, 11),
                     accentColor: Color.FromArgb(255, 245, 158, 11),
                     icon: "\uE7BA");
-                var gradient = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 1) };
-                gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(245, 249, 193, 93), Offset = 0 });
-                gradient.GradientStops.Add(new GradientStop { Color = Color.FromArgb(245, 233, 128, 70), Offset = 1 });
-                _card.Background = gradient;
-                _titleText.Foreground = new SolidColorBrush(Color.FromArgb(255, 65, 37, 13));
-                _messageText.Foreground = new SolidColorBrush(Color.FromArgb(255, 65, 37, 13));
+                _card.Background = new SolidColorBrush(Services.ThemeTokens.Parse(dark ? "#3B3023" : "#FFF4DD"));
+                _titleText.Foreground = new SolidColorBrush(Services.ThemeTokens.Parse(dark ? "#FFE2A5" : "#77501B"));
+                _messageText.Foreground = _titleText.Foreground;
                 break;
 
             case IFB.Shared.Enums.AnnouncementPriority.Urgent:
@@ -195,7 +192,7 @@ public sealed class AnnouncementBanner : UserControl
                     borderColor: Color.FromArgb(150, 239, 68, 68),
                     accentColor: Color.FromArgb(255, 239, 68, 68),
                     icon: "\uE814");
-                StartUrgentPulse();
+                // Persistent priority colour is sufficient; no looping opacity pulses.
                 break;
         }
     }

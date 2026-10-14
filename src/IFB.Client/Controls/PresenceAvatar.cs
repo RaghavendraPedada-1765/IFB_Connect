@@ -156,11 +156,7 @@ public sealed class PresenceAvatar : UserControl
         _presenceDot.Visibility = Visibility.Visible;
 
         // Animated pulse ring for Online status
-        if (status == PresenceStatus.Online)
-        {
-            _presencePulse.Fill = new SolidColorBrush(Color.FromArgb(120, 34, 197, 94));
-            StartPulseAnimation();
-        }
+        _presencePulse.Visibility = Visibility.Collapsed;
     }
 
     private void StartPulseAnimation()
@@ -211,9 +207,11 @@ public sealed class PresenceAvatar : UserControl
 
     private static LinearGradientBrush GetAvatarGradient(string name)
     {
-        int hash = Math.Abs(name?.GetHashCode() ?? 0);
-        var c1 = AvatarPalette[hash % AvatarPalette.Length];
-        var c2 = AvatarPalette[(hash / 8) % AvatarPalette.Length];
+        // String.GetHashCode varies per process. Keep an employee's colour stable.
+        uint hash = 2166136261;
+        foreach (var character in name ?? "") hash = unchecked((hash ^ character) * 16777619);
+        var c1 = AvatarPalette[hash % (uint)AvatarPalette.Length];
+        var c2 = c1;
         return new LinearGradientBrush(
             new GradientStopCollection
             {

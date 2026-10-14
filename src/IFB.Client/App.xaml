@@ -24,6 +24,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Value converters — global scope -->
+            <converters:FileSizeConverter x:Key="FileSizeConverter" xmlns:converters="using:IFB.Client.Converters"/>
             <converters:MessageBubbleBrushConverter x:Key="MessageBubbleBrushConverter" xmlns:converters="using:IFB.Client.Converters"/>
             <converters:MessageAlignmentConverter x:Key="MessageAlignmentConverter" xmlns:converters="using:IFB.Client.Converters"/>
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"

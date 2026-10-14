@@ -43,17 +43,24 @@ public sealed class ConversationsController : ControllerBase
     {
         var userId = CurrentUserId;
 
-        var conversations = await _db.ConversationMembers
-            .Where(m => m.UserId == userId)
-            .Include(m => m.Conversation)
-                .ThenInclude(c => c.Members)
-                    .ThenInclude(m => m.User)
-            .Select(m => m.Conversation)
-            .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1)).ThenInclude(m => m.Sender)
-            .Where(c => !c.IsArchived)
+        var conversations = await _db.Conversations
+            .Where(c => !c.IsArchived && c.Members.Any(m => m.UserId == userId))
+            .Include(c => c.Members).ThenInclude(m => m.User)
             .OrderByDescending(c => c.LastActivity)
             .AsNoTracking()
             .ToListAsync();
+
+        // A filtered collection Include plus Sender requires SQL APPLY on SQLite.
+        // Use a scalar latest-ID subquery instead; never load the entire history.
+        var conversationIds = conversations.Select(c => c.Id).ToList();
+        var latestMessages = await _db.Messages.AsNoTracking().Include(m => m.Sender)
+            .Where(m => conversationIds.Contains(m.ConversationId) && m.Id == _db.Messages
+                .Where(candidate => candidate.ConversationId == m.ConversationId)
+                .OrderByDescending(candidate => candidate.SentAt).ThenByDescending(candidate => candidate.Id)
+                .Select(candidate => candidate.Id).FirstOrDefault())
+            .ToDictionaryAsync(m => m.ConversationId);
+        foreach (var conversation in conversations)
+            if (latestMessages.TryGetValue(conversation.Id, out var latest)) conversation.Messages.Add(latest);
 
         var unread = await _db.Messages.Where(m => !m.IsDeleted && m.SenderId != userId &&
             m.Conversation.Members.Any(cm => cm.UserId == userId) && !m.ReadReceipts.Any(r => r.UserId == userId))

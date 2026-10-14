@@ -43,6 +43,7 @@ public sealed class AuthController : ControllerBase
 
     [HttpPost("refresh")]
     [AllowAnonymous]
+    [EnableRateLimiting("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto dto)
     {
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -60,10 +61,14 @@ public sealed class AuthController : ControllerBase
         return result == null ? Unauthorized() : Ok(result);
     }
 
+    // Possession of the refresh token is the credential being revoked, so no access token is required.
+    // The desktop client signs out even after its access token has expired.
     [HttpPost("logout")]
-    [Authorize]
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequestDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.RefreshToken) || dto.RefreshToken.Length > 512) return BadRequest();
         await _auth.RevokeRefreshTokenAsync(dto.RefreshToken);
         return NoContent();
     }

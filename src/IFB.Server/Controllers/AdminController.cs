@@ -45,13 +45,22 @@ public sealed class AdminController(AppDbContext db, IPresenceTracker presence,
         if (!Enum.IsDefined(dto.Role)) return BadRequest();
         if (id == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value && (!dto.IsActive || dto.Role != UserRole.Admin))
             return BadRequest("You cannot remove your own administrator access.");
-        user.Role = dto.Role; user.IsActive = dto.IsActive; user.Department = dto.Department; user.Title = dto.Title;
+        if (dto.DisplayName != null && (string.IsNullOrWhiteSpace(dto.DisplayName) || dto.DisplayName.Trim().Length > 128) ||
+            dto.Department?.Length > 128 || dto.Title?.Length > 128)
+            return BadRequest("Display name is required; name, department and title are limited to 128 characters.");
+        // Only access-affecting changes end the user's sessions; profile edits do not.
+        var endSessions = user.Role != dto.Role || user.IsActive != dto.IsActive || dto.NewPassword != null;
+        if (dto.DisplayName != null) user.DisplayName = dto.DisplayName.Trim();
+        user.Role = dto.Role; user.IsActive = dto.IsActive;
+        user.Department = string.IsNullOrWhiteSpace(dto.Department) ? null : dto.Department.Trim();
+        user.Title = string.IsNullOrWhiteSpace(dto.Title) ? null : dto.Title.Trim();
         if (dto.NewPassword != null)
         {
             if (!user.IsLocalAccount || dto.NewPassword.Length < 12) return BadRequest("Local password must have at least 12 characters.");
             (user.PasswordHash, user.PasswordSalt) = AuthService.HashPassword(dto.NewPassword);
         }
-        await db.SaveChangesAsync(); return await ForceLogout(id);
+        await db.SaveChangesAsync();
+        return endSessions ? await ForceLogout(id) : NoContent();
     }
 
     [HttpGet("conversations")]
@@ -96,6 +105,6 @@ public sealed class AdminController(AppDbContext db, IPresenceTracker presence,
         return File(Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "ifb-audit.csv");
     }
 }
-public record AdminUserUpdate(UserRole Role, bool IsActive, string? Department, string? Title, string? NewPassword);
+public record AdminUserUpdate(UserRole Role, bool IsActive, string? Department, string? Title, string? NewPassword, string? DisplayName = null);
 public record ChannelRequest(string Name, string? Description, int RetentionDays = 90);
 public record ConversationUpdate(string Name, int RetentionDays, bool IsArchived);

@@ -23,6 +23,7 @@ public sealed partial class ChatPage : Page
         InitializeComponent();
         _vm = App.Services.GetRequiredService<ChatViewModel>();
         DataContext = _vm;
+        Services.FluidMotion.Attach(SendButton);
         MessagesList.ItemsSource = _vm.Messages;
         ActualThemeChanged += (_, _) => { foreach (var message in _vm.Messages) message.RefreshAppearance(); };
 
@@ -119,7 +120,7 @@ public sealed partial class ChatPage : Page
     {
         if (string.IsNullOrWhiteSpace(MessageInput.Text)) return;
         SendButton.IsEnabled = false;
-        try { await AnimateSendButton(); await _vm.SendMessageCommand.ExecuteAsync(null); MessageInput.Text = _vm.ComposerText; }
+        try { await _vm.SendMessageCommand.ExecuteAsync(null); MessageInput.Text = _vm.ComposerText; }
         catch (Exception ex) { await Ui.Error(this, ex); }
         finally { SendButton.IsEnabled = !string.IsNullOrWhiteSpace(MessageInput.Text); }
     }
@@ -163,7 +164,7 @@ public sealed partial class ChatPage : Page
         Action("Reply", () => { _vm.SetReplyTargetCommand.Execute(message); MessageInput.Focus(FocusState.Programmatic); return Task.CompletedTask; });
         if (message.IsFromCurrentUser && !message.IsDeleted)
         {
-            Action("Edit", async () => { var input = new TextBox { Text = message.Content, MaxLength = 10000, AcceptsReturn = true }; var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "Edit message", Content = input, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
+            Action("Edit", async () => { var input = new TextBox { Text = message.Content, MaxLength = 10000, AcceptsReturn = true }; var dialog = new ContentDialog { RequestedTheme = ActualTheme, XamlRoot = XamlRoot, Title = "Edit message", Content = input, PrimaryButtonText = "Save", CloseButtonText = "Cancel" };
                 if (await dialog.ShowAsync() == ContentDialogResult.Primary) await App.Services.GetRequiredService<Services.IHubConnectionService>().EditMessageAsync(new IFB.Shared.Contracts.EditMessageDto(message.Id, input.Text)); });
             Action("Delete", () => App.Services.GetRequiredService<Services.IHubConnectionService>().DeleteMessageAsync(new IFB.Shared.Contracts.DeleteMessageDto(message.Id)));
         }
@@ -189,7 +190,7 @@ public sealed partial class ChatPage : Page
             using var stream = await storage.OpenReadAsync();
             var bitmap = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage { DecodePixelWidth = 1000 };
             await bitmap.SetSourceAsync(stream);
-            await new ContentDialog { XamlRoot = XamlRoot, Title = file.FileName,
+            await new ContentDialog { RequestedTheme = ActualTheme, XamlRoot = XamlRoot, Title = file.FileName,
                 Content = new Image { Source = bitmap, MaxHeight = 420, Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform }, CloseButtonText = "Close" }.ShowAsync();
         }
         catch (Exception ex) { await Ui.Error(this, ex); }
@@ -198,7 +199,18 @@ public sealed partial class ChatPage : Page
 
     private async void AttachmentPreview_Loaded(object sender, RoutedEventArgs e)
     {
-        if (sender is not Image { DataContext: MessageItemViewModel { HasImageAttachment: true, FileId: not null } message } preview) return;
+        if (sender is Image preview) await LoadAttachmentPreviewAsync(preview);
+    }
+    private async void AttachmentPreview_DataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
+    {
+        if (sender is Image preview) await LoadAttachmentPreviewAsync(preview);
+    }
+    private async Task LoadAttachmentPreviewAsync(Image preview)
+    {
+        if (preview.DataContext is not MessageItemViewModel { HasImageAttachment: true, FileId: not null } message) return;
+        if (preview.Tag as string == message.FileId) return;
+        preview.Tag = message.FileId;
+        preview.Source = null;
         string? path = null;
         try
         {
@@ -213,7 +225,7 @@ public sealed partial class ChatPage : Page
             await bitmap.SetSourceAsync(stream);
             if (preview.DataContext == message) preview.Source = bitmap;
         }
-        catch { preview.Visibility = Visibility.Collapsed; }
+        catch { if (preview.DataContext == message) { preview.Tag = null; preview.Visibility = Visibility.Collapsed; } }
         finally { if (path != null && System.IO.File.Exists(path)) System.IO.File.Delete(path); }
     }
 
@@ -231,7 +243,7 @@ public sealed partial class ChatPage : Page
         var results = new ListView { ItemTemplate = Ui.Template(Ui.Text("SenderDisplayName", 12) + Ui.Text("Content") + Ui.Text("SentAt", 12)), MaxHeight = 320 };
         var panel = new StackPanel { Spacing = 12 }; panel.Children.Add(query); panel.Children.Add(Ui.Button("Search", async () =>
         { var page = await App.Services.GetRequiredService<Services.ClientRequests>().GetAsync<Services.MessagePage>($"api/v1/conversations/{_conversationId}/messages?q={Uri.EscapeDataString(query.Text)}&limit=100"); results.ItemsSource = page.Messages; })); panel.Children.Add(results);
-        await new ContentDialog { XamlRoot = XamlRoot, Title = "Search conversation", Content = panel, CloseButtonText = "Close" }.ShowAsync();
+        await new ContentDialog { RequestedTheme = ActualTheme, XamlRoot = XamlRoot, Title = "Search conversation", Content = panel, CloseButtonText = "Close" }.ShowAsync();
     }
 
     private void Emoji_Click(object sender, RoutedEventArgs e)
@@ -300,3 +312,4 @@ public sealed partial class ChatPage : Page
         AddDotBounce(Dot3, TimeSpan.FromMilliseconds(300));
     }
 }
+

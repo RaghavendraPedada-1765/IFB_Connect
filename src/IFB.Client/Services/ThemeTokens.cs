@@ -16,6 +16,9 @@ public static class ThemeTokens
     }
     public static bool AnimationsEnabled => new Windows.UI.ViewManagement.UISettings().AnimationsEnabled &&
         !(App.Services?.GetService(typeof(ClientPreferences)) is ClientPreferences { PerformanceMode: true });
+    public static bool SolidMaterials => !new Windows.UI.ViewManagement.UISettings().AdvancedEffectsEnabled ||
+        new Windows.UI.ViewManagement.AccessibilitySettings().HighContrast ||
+        App.Services?.GetService(typeof(ClientPreferences)) is ClientPreferences { PerformanceMode: true };
     public static Color Parse(string value)
     {
         if (value.Length != 7 || value[0] != '#' || !uint.TryParse(value[1..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgb))
@@ -54,13 +57,13 @@ public static class ThemeTokens
     {
         if (window.Content is FrameworkElement root) root.RequestedTheme = theme.CurrentTheme switch
         { "Light" => ElementTheme.Light, "Dark" => ElementTheme.Dark, _ => ElementTheme.Default };
-        if (theme.IsPerformanceMode) window.SystemBackdrop = null;
+        if (SolidMaterials) window.SystemBackdrop = null;
         else if (Microsoft.UI.Composition.SystemBackdrops.DesktopAcrylicController.IsSupported()) window.SystemBackdrop = new DesktopAcrylicBackdrop();
         else if (Microsoft.UI.Composition.SystemBackdrops.MicaController.IsSupported()) window.SystemBackdrop = new MicaBackdrop();
         void Update(ResourceDictionary dictionary)
         {
             foreach (var key in new[] { "Glass1Brush", "Glass2Brush", "Glass3Brush", "GlassCardBrush", "GlassOverlayBrush" })
-                if (dictionary.TryGetValue(key, out var value) && value is AcrylicBrush acrylic) acrylic.AlwaysUseFallback = theme.IsPerformanceMode;
+                if (dictionary.TryGetValue(key, out var value) && value is AcrylicBrush acrylic) acrylic.AlwaysUseFallback = SolidMaterials;
             foreach (var merged in dictionary.MergedDictionaries) Update(merged);
             foreach (var themed in dictionary.ThemeDictionaries.Values.OfType<ResourceDictionary>()) Update(themed);
         }

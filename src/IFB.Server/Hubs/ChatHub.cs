@@ -22,26 +22,32 @@ public sealed class ChatHub : Hub<IClientHub>, IServerHub
     private readonly IAuditService _audit;
     private readonly IPresenceTracker _presence;
     private readonly AppDbContext _db;
+    private readonly ILogger<ChatHub> _logger;
 
     public ChatHub(
         IMessageService messages,
         IConversationService conversations,
         IAuditService audit,
         IPresenceTracker presence,
-        AppDbContext db)
+        AppDbContext db,
+        ILogger<ChatHub> logger)
     {
         _messages = messages;
         _conversations = conversations;
         _audit = audit;
         _presence = presence;
         _db = db;
+        _logger = logger;
     }
 
     private string UserId =>
         Context.User!.FindFirst(ClaimTypes.NameIdentifier)!.Value;
 
-    private string UserDisplayName =>
-        Context.User!.FindFirst(ClaimTypes.Name)?.Value ?? "Unknown";
+    // ClaimTypes.Name is mapped from the token's unique_name (the username), so read the
+    // current display name from the database instead.
+    private async Task<string> GetDisplayNameAsync(string userId) =>
+        await _db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.DisplayName).FirstOrDefaultAsync()
+        ?? "Unknown";
 
     // ── Connection Lifecycle ──────────────────────────────────────────────────
 
@@ -166,7 +172,9 @@ public sealed class ChatHub : Hub<IClientHub>, IServerHub
         message.IsDeleted = true;
         message.Content = "[This message was deleted]";
         message.EditedAt = DateTime.UtcNow;
+        var orphanedFile = await MessageMaintenance.DetachAttachmentAsync(_db, message);
         await _db.SaveChangesAsync();
+        MessageMaintenance.DeleteStoredFile(orphanedFile, _logger);
 
         await Clients.Group(message.ConversationId)
             .MessageDeletedAsync(new MessageDeletedDto(message.Id, message.ConversationId));
@@ -177,7 +185,7 @@ public sealed class ChatHub : Hub<IClientHub>, IServerHub
         if (!Enum.IsDefined((ReactionEmoji)dto.Emoji)) throw new HubException("Invalid reaction.");
         var userId = UserId;
         var message = await _db.Messages.FindAsync(dto.MessageId);
-        if (message == null) return;
+        if (message == null || message.IsDeleted) return;
 
         if (!await _conversations.IsMemberAsync(message.ConversationId, userId)) return;
 
@@ -213,21 +221,12 @@ public sealed class ChatHub : Hub<IClientHub>, IServerHub
         var message = await _db.Messages.FindAsync(dto.MessageId);
         if (message == null || !await _conversations.IsMemberAsync(message.ConversationId, userId)) return;
 
-        var exists = await _db.MessageReadReceipts
-            .AnyAsync(r => r.MessageId == dto.MessageId && r.UserId == userId);
+        // Marking a message read also marks every earlier incoming message, so clients send one
+        // call for the newest visible message instead of one call per message.
+        var inserted = await MessageMaintenance.MarkReadThroughAsync(_db, message, userId);
+        if (inserted == 0) return;
 
-        if (!exists)
-        {
-            _db.MessageReadReceipts.Add(new Models.MessageReadReceipt
-            {
-                MessageId = dto.MessageId,
-                UserId = userId,
-                ReadAt = DateTime.UtcNow
-            });
-            await _db.SaveChangesAsync();
-        }
-
-        // Notify the original sender their message was read
+        // One event: clients treat it as "read up to and including this message".
         await Clients.Group(message.ConversationId)
             .ReadReceiptAsync(new ReadReceiptDto(dto.MessageId, message.ConversationId,
                 userId, DateTime.UtcNow));
@@ -240,7 +239,7 @@ public sealed class ChatHub : Hub<IClientHub>, IServerHub
 
         // Broadcast to group but exclude the caller
         await Clients.GroupExcept(dto.ConversationId, Context.ConnectionId)
-            .TypingAsync(new TypingEventDto(dto.ConversationId, userId, UserDisplayName, dto.IsTyping));
+            .TypingAsync(new TypingEventDto(dto.ConversationId, userId, await GetDisplayNameAsync(userId), dto.IsTyping));
     }
 
     public async Task UpdatePresenceAsync(UpdatePresenceDto dto)

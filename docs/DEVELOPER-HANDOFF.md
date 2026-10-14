@@ -21,7 +21,7 @@ dotnet dev-certs https --trust
 
 The development script asks for a new administrator username/password and starts a loopback HTTPS server at https://localhost:5001. In Visual Studio select IFB.Client as the startup project, use x64, and run it. Configure the client server address as https://localhost:5001 and sign in using the new administrator. Create employee accounts through Administration. Do not reuse the sender's passwords or signing keys.
 
-Run isolated checks with `dotnet run --project tests/IFB.Tests`. Their data is generated under .work/tests. Current report records 45 passing checks. The sender reports no issues after manually testing messaging, replies, reactions, image previews, announcements and notifications; this is user-reported acceptance, not independently automated desktop verification. Domain authentication, SQL Server and deployment in the receiving environment require separate checks.
+Run isolated checks with `dotnet run --project tests/IFB.Tests`. Their data is generated under .work/tests. The suite has 57 checks (59 with `--load`); `docs/test-results.json` holds the latest local run. The sender reports no issues after manually testing messaging, replies, reactions, image previews, announcements and notifications; this is user-reported acceptance, not independently automated desktop verification. Domain authentication, SQL Server and deployment in the receiving environment require separate checks.
 
 For optional two-profile development testing, first start the development server, then:
 
